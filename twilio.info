@@ -1,0 +1,3 @@
+name = Twilio
+description = Simple Twilio integration module
+core = 7.x

@@ -1,0 +1,52 @@
+<?php
+/**
+ * @file
+ * Install and uninstall functions for the twilio module.
+ *
+ */
+
+/**
+ * Implements hook_install().
+ */
+function twilio_install() {
+}
+
+/**
+ * Implements hook_install().
+ */
+function twilio_uninstall() {
+}
+
+/**
+ * Implements hook_schema().
+ */
+function twilio_schema() {
+  $schema['twilio_user'] = array(
+    'fields' => array(
+      'uid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'number' => array(
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length' => 32,
+      ),
+      'status' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'code' => array(
+        'type' => 'varchar',
+        'not null' => FALSE,
+        'length' => 16,
+        'default' => ''
+      ),
+    ),
+    'primary key' => array('number'),
+    'indexes' => array('uid' => array('uid')),
+  );
+  return $schema;
+}
