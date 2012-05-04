@@ -43,6 +43,12 @@ function twilio_menu() {
     'access callback' => TRUE, 
     'type' => MENU_CALLBACK,
   );
+
+  $items['twilio/voice'] = array(
+    'page callback' => 'twilio_receive_voice', 
+    'access callback' => TRUE, 
+    'type' => MENU_CALLBACK,
+  );
   return $items;
 }
 
@@ -195,6 +201,13 @@ function twilio_sms_incoming($number, $message, $options = array()) {
   module_invoke_all('twilio_sms_incoming', $number, $message, $options);
 }
 
+
+/**
+ * Callback for incoming voice calls.
+ */
+function twilio_receive_voice() {
+  module_invoke_all('twilio_voice_incoming');
+}
 
 /**
  * Implements hook_user_load()
