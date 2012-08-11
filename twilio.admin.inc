@@ -1,7 +1,11 @@
 <?php
+/**
+ * @file
+ * Administrative forms section
+ */
 
 /**
- * Administration form for twilio settings
+ * Administration form for twilio settings.
  */
 function twilio_admin_form($form, &$form_state) {
   $form['twilio_path'] = array(
@@ -39,11 +43,11 @@ function twilio_admin_form($form, &$form_state) {
     '#options' => array(t('Disabled'), t('Optional'), t('Required')),
     '#default_value' => variable_get('twilio_registration_form', 0),
   );
-  return system_settings_form($form); 
+  return system_settings_form($form);
 }
 
 /**
- * Administrative testing form for SMS
+ * Administrative testing form for SMS.
  */
 function twilio_admin_test_form($form, &$form_state) {
   $form['number'] = array(
@@ -64,17 +68,17 @@ function twilio_admin_test_form($form, &$form_state) {
 }
 
 /**
- * Validation handler for the administrative test message form
+ * Validation handler for the administrative test message form.
  */
 function twilio_admin_test_form_validate($form, &$form_state) {
   $number = $form_state['values']['number'];
-  if(!twilio_validate_number($number)){
+  if (!twilio_validate_number($number)) {
     form_set_error('number', t('You must enter a valid 10 digit phone number'));
   }
 }
 
 /**
- * Submit handler for the administrative test message testing form
+ * Submit handler for the administrative test message testing form.
  */
 function twilio_admin_test_form_submit($form, &$form_state) {
   twilio_send($form_state['values']['number'], $form_state['values']['message']);

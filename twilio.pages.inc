@@ -1,4 +1,8 @@
 <?php
+/**
+ * @file
+ * User facing pages
+ */
 
 /**
  * Menu callback; provides the forms for adding and confirming a user's mobile number.
@@ -7,6 +11,9 @@ function twilio_user_settings($account) {
   return drupal_get_form('twilio_user_settings_form', $account);
 }
 
+/**
+ * User settings form.
+ */
 function twilio_user_settings_form($form, &$form_state, $account) {
 
   if (isset($form_state['values']['account'])) {
@@ -102,24 +109,31 @@ function twilio_user_settings_form($form, &$form_state, $account) {
   return $form;
 }
 
+/**
+ * Ajax callback for user forms.
+ */
 function twilio_user_settings_ajax_callback($form, &$form_state) {
   return $form;
 }
 
 /**
+ * Validation function for user settings form.
+ *
  * @todo Please document this function.
  * @see http://drupal.org/node/1354
  */
 function twilio_user_settings_add_form_validate($form, &$form_state) {
-  if(!twilio_validate_number($form_state['values']['number'])){
+  if (!twilio_validate_number($form_state['values']['number'])) {
     form_set_error('number', t('You must enter a valid 10 digit phone number'));
   }
-  else if (twilio_verify_duplicate_number($form_state['values']['number'])) {
+  elseif (twilio_verify_duplicate_number($form_state['values']['number'])) {
     form_set_error('number', t('This number is already in use and cannot be assigned to more than one account'));
   }
 }
 
 /**
+ * Submit handler for user settings form.
+ *
  * @todo Please document this function.
  * @see http://drupal.org/node/1354
  */
@@ -134,6 +148,8 @@ function twilio_user_settings_add_form_submit($form, &$form_state, $account = NU
 }
 
 /**
+ * Validation handler for user settings confirmation form.
+ *
  * @todo Please document this function.
  * @see http://drupal.org/node/1354
  */
@@ -147,6 +163,8 @@ function twilio_user_settings_confirm_form_validate($form, &$form_state) {
 }
 
 /**
+ * Submit handler for user settings confirmation form.
+ *
  * @todo Please document this function.
  * @see http://drupal.org/node/1354
  */
@@ -169,10 +187,15 @@ function twilio_user_settings_confirm_form_submit($form, &$form_state) {
   $form_state['rebuild'] = TRUE;
 }
 
+/**
+ * Validation handler for user settings reset form.
+ */
 function twilio_user_settings_reset_form_validate($form, &$form_state) {
 }
 
 /**
+ * Submit handler for user settings reset form.
+ *
  * @todo Please document this function.
  * @see http://drupal.org/node/1354
  */
