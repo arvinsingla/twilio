@@ -8,6 +8,7 @@
 /**
  * Define constants for twilio phone number validation
  */
+define('TWILIO_LIBRARY', 'twilio');
 define('TWILIO_USER_PENDING', 1);
 define('TWILIO_USER_CONFIRMED', 2);
 define('TWILIO_USER_MAX_CHARS', 140);
@@ -21,7 +22,7 @@ function twilio_menu() {
     'description' => 'Administer your twilio settings',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('twilio_admin_form'),
-    'access callback' => TRUE,
+    'access arguments' => array('access administration pages'),
     'file' => 'twilio.admin.inc',
   );
   $items['admin/config/system/twilio/settings'] = array(
@@ -34,17 +35,15 @@ function twilio_menu() {
     'description' => 'Test your twilio SMS sending',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('twilio_admin_test_form'),
-    'access callback' => TRUE,
+    'access arguments' => array('access administration pages'),
     'file' => 'twilio.admin.inc',
     'type' => MENU_LOCAL_TASK,
   );
-  // Callback for incoming SMS messages.
   $items['twilio/sms'] = array(
     'page callback' => 'twilio_receive_message',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
-
   $items['twilio/voice'] = array(
     'page callback' => 'twilio_receive_voice',
     'access callback' => TRUE,
@@ -95,6 +94,24 @@ function twilio_edit_access($account) {
   return user_edit_access($account) && user_access('edit own sms number');
 }
 
+/**
+ * Implements hook_libraries_info().
+ */
+function twilio_libraries_info() {
+  $libraries['twilio'] = array(
+    'name' => 'Twilio library',
+    'vendor url' => 'http://www.twilio.com',
+    'download url' => 'https://github.com/twilio/twilio-php/tarball/latest',
+    'path' => 'Services',
+    'version' => '2010-04-01',
+    'files' => array(
+      'php' => array(
+        'Twilio.php',
+      ),
+    ),
+  );
+  return $libraries;
+}
 
 /**
  * Sends a message via Twilio.
@@ -106,14 +123,6 @@ function twilio_edit_access($account) {
  *   The message to send to the recipient
  */
 function twilio_send($number, $message) {
-  $number = preg_replace("/[^0-9]/", '', $number);
-  $number = trim($number);
-  // Remove leading zeros.
-  $number = ltrim($number, '0');
-  $index = strpos($number, '1');
-  if ($index === FALSE || $index > 0) {
-    $number = '1' . $number;
-  }
   return twilio_command('sendmsg', array('number' => $number, 'message' => $message));
 }
 
@@ -123,16 +132,28 @@ function twilio_send($number, $message) {
  * @param string $number
  *   A potential phone number
  *
+ * @param boolean $country_code
+ *   A flag indicating if the country code should be added.
+ *
  * @result
  *   A string with a properly formatted number, FALSE otherwise
  */
-function twilio_validate_number($number) {
-  // Remove non-digits.
-  $phone = preg_replace('/\D/', '', $number);
-  // Phone number regex validation - http://blogchuck.com/2010/01/php-regex-for-validating-phone-numbers
-  $regex = '/^(?(?!(37|96))[2-9][0-8][0-9](?<!(11)))?[2-9][0-9]{2}(?<!(11))[0-9]{4}(?<!(555(01([0-9][0-9])|1212)))$/';
-  if (preg_match($regex, $phone)) {
-    return $phone;
+function twilio_validate_number($number, $country_code = TRUE) {
+  // Phone number regex validation - http://www.virtuosimedia.com/dev/php/37-tested-php-perl-and-javascript-regular-expressions
+  $regex = '/^((([0-9]{1})*[- .(]*([0-9]{3})[- .)]*[0-9]{3}[- .]*[0-9]{4})+)*$/';
+  if (preg_match($regex, $number)) {
+    // Clean up the number.
+    $number = preg_replace("/[^0-9]/", '', $number);
+    $number = trim($number);
+    // Remove any leading zeros.
+    $number = ltrim($number, '0');
+    if ($country_code) {
+      $index = strpos($number, '1');
+      if ($index === FALSE || $index > 0) {
+        $number = '1' . $number;
+      }
+    }
+    return $number;
   }
   else {
     return FALSE;
@@ -140,39 +161,49 @@ function twilio_validate_number($number) {
 }
 
 /**
- * Executes a command using the Twilio REST API version "2008-08-01".
+ * Executes a command using the Twilio REST API.
  */
 function twilio_command($command = 'auth', $data = array(), $config = NULL, $account = '') {
-  // Include the PHP TwilioRest library.
-  require_once variable_get('twilio_path');
 
-  // Set our AccountSid and AuthToken.
-  $account_sid = variable_get('twilio_account');
-  $auth_token = variable_get('twilio_token');
+  $result = array();
 
-  // Instantiate a new Twilio Rest Client.
-  $client = new Services_Twilio($account_sid, $auth_token);
+  // Try to load the library and check if that worked.
+  if (($library = libraries_load(TWILIO_LIBRARY)) && !empty($library['loaded'])) {
 
-  switch ($command) {
-    case 'sendmsg':
-      // Check if the message requires unicode handling.
-      $response = $client->account->sms_messages->create(variable_get('twilio_number'), $data['number'], $data['message']);
-      $log_message = 'SMS message sent to ' . $data['number'] . ' with the message "' . $data['message'] . '"';
-      watchdog('Twilio', $log_message, $variables = array(), $severity = WATCHDOG_NOTICE, $link = NULL);
-      break;
-  }
-  watchdog('Twilio', print_r($response, TRUE));
-  // Check for HTTP errors.
-  if ($response->IsError) {
-    $result = array(
-      'status' => FALSE,
-      'message' => t('An error occured during the HTTP request: @error', array('@error' => $response->ErrorMessage))
-    );
+    // Set our AccountSid and AuthToken.
+    $account_sid = variable_get('twilio_account');
+    $auth_token = variable_get('twilio_token');
+
+    // Instantiate a new Twilio Rest Client.
+    $client = new Services_Twilio($account_sid, $auth_token);
+
+    switch ($command) {
+      case 'sendmsg':
+        // Check if the message requires unicode handling.
+        $response = $client->account->sms_messages->create(variable_get('twilio_number'), $data['number'], $data['message']);
+        $log_message = 'SMS message sent to ' . $data['number'] . ' with the message "' . $data['message'] . '"';
+        watchdog('Twilio', $log_message, $variables = array(), $severity = WATCHDOG_NOTICE, $link = NULL);
+        break;
+    }
+    watchdog('Twilio', print_r($response, TRUE));
+    // Check for HTTP errors.
+    if ($response->IsError) {
+      $result = array(
+        'status' => FALSE,
+        'message' => t('An error occured during the HTTP request: @error', array('@error' => $response->ErrorMessage))
+      );
+    }
+    else {
+      $result = array(
+        'status' => TRUE,
+        'data' => t('Message sent to @number', array('@number' => $data['number']))
+      );
+    }
   }
   else {
     $result = array(
-      'status' => TRUE,
-      'data' => t('Message sent to @number', array('@number' => $data['number']))
+      'status' => FALSE,
+      'data' => t('The twilio library was not loaded properly')
     );
   }
   return $result;

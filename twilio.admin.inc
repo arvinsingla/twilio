@@ -8,13 +8,20 @@
  * Administration form for twilio settings.
  */
 function twilio_admin_form($form, &$form_state) {
-  $form['twilio_path'] = array(
-    '#type' => 'textfield',
-    '#required' => TRUE,
-    '#title' => t('Twilio Path'),
-    '#default_value' => variable_get('twilio_path'),
-    '#description' => t('Enter the full path to the twilio library. e.g. sites/all/libraries/twilio/Services/Twilio.php'),
+
+  $library = libraries_detect(TWILIO_LIBRARY);
+  if (empty($library['installed'])) {
+    $twilio_library_status = t('The Twilo library is not currently installed');
+  }
+  else {
+    $twilio_library_status = t('The Twilio library is installed correctly');
+  }
+
+  $form['twilio_library_status'] = array(
+    '#type' => 'markup',
+    '#markup' => $twilio_library_status,
   );
+
   $form['twilio_account'] = array(
     '#type' => 'textfield',
     '#required' => TRUE,
@@ -35,6 +42,7 @@ function twilio_admin_form($form, &$form_state) {
     '#title' => t('Twilio Phone Number'),
     '#default_value' => variable_get('twilio_number'),
     '#description' => t('Enter your Twilio phone number'),
+    '#element_validate' => array('twilio_admin_phone_validate'),
   );
   $form['twilio_registration_form'] = array(
     '#type' => 'radios',
@@ -44,6 +52,18 @@ function twilio_admin_form($form, &$form_state) {
     '#default_value' => variable_get('twilio_registration_form', 0),
   );
   return system_settings_form($form);
+}
+
+/**
+ * Element validator for the phone number field.
+ */
+function twilio_admin_phone_validate($element, &$form_state, $form) {
+  if ($number = twilio_validate_number($element['#value'], FALSE)) {
+    $form_state['values']['twilio_number'] = $number;
+  }
+  else {
+    form_error($element, t('You must enter a valid 10 digit phone number'));
+  }
 }
 
 /**
@@ -71,8 +91,11 @@ function twilio_admin_test_form($form, &$form_state) {
  * Validation handler for the administrative test message form.
  */
 function twilio_admin_test_form_validate($form, &$form_state) {
-  $number = $form_state['values']['number'];
-  if (!twilio_validate_number($number)) {
+  $number = twilio_validate_number($form_state['values']['number']);
+  if ($number) {
+    $form_state['values']['number'] = $number;
+  }
+  else {
     form_set_error('number', t('You must enter a valid 10 digit phone number'));
   }
 }
