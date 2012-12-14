@@ -392,3 +392,38 @@ function twilio_user_send_confirmation($account, $number) {
   twilio_send($number, $message);
   return $account;
 }
+
+/**
+ * Implements hook_rules_action_info() on behalf of the user module.
+ */
+function twilio_rules_action_info() {
+  $defaults = array(
+   'parameter' => array(
+      'account' => array(
+        'type' => 'user',
+        'label' => t('User'),
+        'save' => TRUE,
+      ),
+      'message' => array(
+        'type' => 'text',
+        'label' => t('Message'),
+      ),
+    ),
+    'group' => t('User'),
+    //'access callback' => 'rules_user_integration_access',
+  );
+  $actions['user_send_sms'] = $defaults + array(
+    'label' => t('Send an SMS'),
+    'base' => 'rules_action_user_send_sms',
+  );
+  return $actions;
+}
+
+/**
+ * Action: Send an SMS to a user.
+ */
+function rules_action_user_send_sms($account, $message) {
+  if (!empty($account->twilio_user['number']) && $account->twilio_user['status'] == 2) {
+    twilio_send($account->twilio_user['number'], $message);
+  }
+}
