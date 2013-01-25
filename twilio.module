@@ -6,12 +6,13 @@
  */
 
 /**
- * Define constants for twilio phone number validation
+ * Define constants for twilio
  */
 define('TWILIO_LIBRARY', 'twilio');
 define('TWILIO_USER_PENDING', 1);
 define('TWILIO_USER_CONFIRMED', 2);
 define('TWILIO_USER_MAX_CHARS', 140);
+define('TWILIO_API_VERSION', '2010-04-01');
 
 /**
  * Implements hook_menu().
@@ -174,23 +175,59 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
     $account_sid = variable_get('twilio_account');
     $auth_token = variable_get('twilio_token');
 
-    // Instantiate a new Twilio Rest Client.
-    $client = new Services_Twilio($account_sid, $auth_token);
+    // Twilio REST API version
+    $ApiVersion = isset($config['sms_twilio_api']) && $config['sms_twilio_api'] ? $config['sms_twilio_api'] : TWILIO_API_VERSION;
+    
+      // Instantiate a new Twilio Rest Client
+    switch($ApiVersion) {
+      case '2010-04-01':
+      // Instantiate a new Twilio Rest Client.
+      $client = new Services_Twilio($account_sid, $auth_token);
 
-    switch ($command) {
-      case 'sendmsg':
-        // Check if the message requires unicode handling.
-        $response = $client->account->sms_messages->create(variable_get('twilio_number'), $data['number'], $data['message']);
-        $log_message = 'SMS message sent to ' . $data['number'] . ' with the message "' . $data['message'] . '"';
-        watchdog('Twilio', $log_message, $variables = array(), $severity = WATCHDOG_NOTICE, $link = NULL);
+        switch ($command) {
+          case 'sendmsg':
+            $response  = $client->account->sms_messages->create(
+              variable_get('twilio_number'),
+              $data['number'],
+              $data['message']
+            );
+            break;
+        }
         break;
+      case '2008-08-01':
+        // Include the PHP TwilioRest library  
+        $client = new TwilioRestClient($account_sid, $auth_token);
+  
+        switch ($command) {
+          case 'sendmsg':
+            $response = $client->request("/$ApiVersion/Accounts/$AccountSid/SMS/Messages",
+              "POST", array(
+              "To" => $data['number'],
+              "From" => variable_get('twilio_number'),
+              "Body" => $data['message'],
+            ));
+            break;
+        }
+        break;
+      default:
+        $result = array(
+          'status' => FALSE,
+          'message' => t('Invalid Twilio API: @api', array('@api', $ApiVersion)),
+        );
+        return $result;
     }
+    
     watchdog('Twilio', print_r($response, TRUE));
     // Check for HTTP errors.
-    if ($response->IsError) {
+    if (($ApiVersion == '2008-08-01') and ($response->IsError)) {
       $result = array(
         'status' => FALSE,
         'message' => t('An error occured during the HTTP request: @error', array('@error' => $response->ErrorMessage))
+      );
+    } else if (($ApiVersion == '2010-04-01') and ($response->status == 'failed')) {
+      $result = array(
+        'status' => FALSE,
+        'message' => t('An error occured during the HTTP request'),
       );
     }
     else {
