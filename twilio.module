@@ -251,15 +251,17 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
  * Callback for incoming messages.
  */
 function twilio_receive_message() {
-  $number = str_replace('+1', '', $_REQUEST['From']);
-  $message = check_plain($_REQUEST['Body']);
-  $options = array();
-  if (array_key_exists('To', $_REQUEST) && !empty($_REQUEST['To'])) {
-    $options['receiver'] = $_REQUEST['To'];
+  if (!empty($_REQUEST['From']) && !empty($_REQUEST['Body'])) {
+    $number = str_replace('+1', '', $_REQUEST['From']);
+    $message = check_plain($_REQUEST['Body']);
+    $options = array();
+    if (!empty($_REQUEST['To'])) {
+      $options['receiver'] = $_REQUEST['To'];
+    }
+    $log_message = 'An SMS message was sent from ' . $number . ' containing the message "' . $message . '"';
+    watchdog('Twilio', $log_message);
+    twilio_sms_incoming($number, $message, $options);
   }
-  $log_message = 'An SMS message was sent from ' . $number . ' containing the message "' . $message . '"';
-  watchdog('Twilio', $log_message);
-  twilio_sms_incoming($number, $message, $options);
 }
 
 /**
@@ -274,6 +276,12 @@ function twilio_receive_message() {
 function twilio_sms_incoming($number, $message, $options = array()) {
   // Invoke a hook for the incoming message so other modules can do things with it.
   module_invoke_all('twilio_sms_incoming', $number, $message, $options);
+  if (module_exists('rules')) {
+    if ($account = twilio_verify_number($number, TRUE)) {
+      rules_invoke_event('twilio_sms_incoming_from_user', $number, $message, $account);
+    }
+    rules_invoke_event('twilio_sms_incoming', $number, $message);
+  }
 }
 
 
@@ -357,21 +365,27 @@ function twilio_user_login(&$edit, $account) {
 }
 
 /**
- * Checks if a given phone number already exists in the database.
+ * Determines if a number is associated with a user account
  *
- * @param string $number
- *   The sender's mobile number.
- *
- * @result boolean
- *   TRUE if it exists, FALSE otherwise
+ * @param $number
+ *   The phone number we are searching for
+ * @param $return_user
+ *   Boolean flag to return a user object if TRUE
+ *   
+ * @results bool
+ *   TRUE or FALSE based on query, User object if $number belongs to user and $return_user is TRUE and 
  */
-function twilio_verify_duplicate_number($number) {
+function twilio_verify_number($number, $return_user = FALSE) {
   $result = db_select('twilio_user', 't')
     ->fields('t')
     ->condition('t.number', $number)
+    ->condition('t.status', TWILIO_USER_CONFIRMED)
     ->execute()
     ->fetchAssoc();
-  if ($result['number'] == $number) {
+  if (!empty($result['uid'])) {
+    if ($return_user) {
+      return user_load($result['uid']);
+    }
     return TRUE;
   }
   return FALSE;
@@ -381,10 +395,12 @@ function twilio_verify_duplicate_number($number) {
  * Implements hook_FORMID_form_alter().
  */
 function twilio_form_user_register_form_alter(&$form, &$form_state, $form_id) {
-  if (variable_get('twilio_registration_form', 0)) {
-    $required = FALSE;
-    if (variable_get('twilio_registration_form', 0) == 2) {
+  if ($twilio_registration_form = variable_get('twilio_registration_form', 0)) {
+    if ($twilio_registration_form == 2) {
       $required = TRUE;
+    }
+    else {
+      $required = FALSE;
     }
     $form['account']['number'] = array(
       '#type' => 'textfield',
@@ -403,7 +419,7 @@ function twilio_register_validate($form, &$form_state) {
   if (!twilio_validate_number($form_state['values']['number'])) {
     form_set_error('number', t('You must enter a valid 10 digit phone number'));
   }
-  elseif (twilio_verify_duplicate_number($form_state['values']['number'])) {
+  elseif (twilio_verify_number($form_state['values']['number'])) {
     form_set_error('number', t('This number is already in use and cannot be assigned to more than one account'));
   }
 }
@@ -441,39 +457,4 @@ function twilio_user_send_confirmation($account, $number) {
   $message = "Confirmation code: $code";
   twilio_send($number, $message);
   return $account;
-}
-
-/**
- * Implements hook_rules_action_info() on behalf of the user module.
- */
-function twilio_rules_action_info() {
-  $defaults = array(
-   'parameter' => array(
-      'account' => array(
-        'type' => 'user',
-        'label' => t('User'),
-        'save' => TRUE,
-      ),
-      'message' => array(
-        'type' => 'text',
-        'label' => t('Message'),
-      ),
-    ),
-    'group' => t('User'),
-    //'access callback' => 'rules_user_integration_access',
-  );
-  $actions['user_send_sms'] = $defaults + array(
-    'label' => t('Send an SMS'),
-    'base' => 'rules_action_user_send_sms',
-  );
-  return $actions;
-}
-
-/**
- * Action: Send an SMS to a user.
- */
-function rules_action_user_send_sms($account, $message) {
-  if (!empty($account->twilio_user['number']) && $account->twilio_user['status'] == 2) {
-    twilio_send($account->twilio_user['number'], $message);
-  }
 }
