@@ -76,7 +76,6 @@ function twilio_user_settings_form($form, &$form_state, $account) {
     $form['reset'] = array(
       '#type' => 'submit',
       '#value' => t('Delete & start over'),
-      '#access' => user_access('edit own sms number'),
       '#validate' => array('twilio_user_settings_confirm_form_validate'),
       '#submit' => array('twilio_user_settings_confirm_form_submit'),
       '#ajax' => array(
@@ -96,7 +95,7 @@ function twilio_user_settings_form($form, &$form_state, $account) {
     $form['reset'] = array(
       '#type' => 'submit',
       '#value' => t('Delete & start over'),
-      '#access' => user_access('edit own sms number'),
+      //'#access' => user_access('edit own sms number'),
       '#validate' => array('twilio_user_settings_reset_form_validate'),
       '#submit' => array('twilio_user_settings_reset_form_submit'),
       '#ajax' => array(

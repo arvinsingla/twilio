@@ -61,6 +61,7 @@ function twilio_menu_alter(&$callbacks) {
   $callbacks['user/%user_category/edit/twilio']['module'] = 'twilio';
   $callbacks['user/%user_category/edit/twilio']['page arguments'] = array(1);
   $callbacks['user/%user_category/edit/twilio']['file'] = 'twilio.pages.inc';
+  $callbacks['user/%user_category/edit/twilio']['access callback'] = array('twilio_edit_access');
 }
 
 /**
@@ -340,6 +341,18 @@ function twilio_user_save(&$edit, $account, $category) {
     $edit['twilio']['number'] = NULL;
     $edit['twilio']['status'] = NULL;
     $edit['twilio']['code'] = NULL;
+  }
+}
+
+/**
+ * Implements hook_user_login().
+ */
+function twilio_user_login(&$edit, $account) {
+  // If the users mobile number is in the verification state let them know they
+  // need to enter their verification code and link to their settings page. 
+  if (user_access('edit own sms number') && !empty($account->twilio_user) && $account->twilio_user['status'] == 1) {
+    $account_link = l(t("account settings page"), 'user/' . $account->uid . '/edit/twilio');
+    drupal_set_message(t("You must confirm your phone number by entering the verification code sent to you via SMS. Go to the !link to enter your verification code.", array('!link' => $account_link)), 'warning');
   }
 }
 
