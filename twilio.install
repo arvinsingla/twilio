@@ -49,3 +49,32 @@ function twilio_schema() {
   );
   return $schema;
 }
+
+/**
+ * Implements hook_requirements().
+ */
+function twilio_requirements($phase) {
+  $requirements = array();
+  if ($phase == 'runtime') {
+    // Ensure translations do not break at install time
+    $t = get_t();
+    $requirements['twilio']['title'] = $t('Twilio library');
+    if (module_exists('libraries') && function_exists('libraries_detect')) {
+      $library = libraries_detect(TWILIO_LIBRARY);
+      $twilio_installed = ($library['installed']) ? TRUE : FALSE;
+    }
+    else {
+      $twilio_installed = FALSE;
+    }
+    if ($twilio_installed) {
+      $requirements['twilio']['value'] = $t('Installed API version !version', array('!version' => $library['version']));
+      $requirements['twilio']['severity'] = REQUIREMENT_OK;
+    }
+    else {
+      $requirements['twilio']['value'] = $t('Not installed');
+      $requirements['twilio']['severity'] = REQUIREMENT_ERROR;
+      $requirements['twilio']['description'] = $t('Please download the Twilio PHP library from !link.', array('!link' => l('http://www.twilio.com/docs/libraries', 'http://www.twilio.com/docs/libraries')));
+    }
+  }
+  return $requirements;
+}

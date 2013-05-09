@@ -308,6 +308,27 @@ function twilio_user_load($users) {
 }
 
 /**
+ * Checks if a given phone number already exists in the database.
+ *
+ * @param string $number
+ *   The sender's mobile number.
+ *
+ * @result boolean
+ *   TRUE if it exists, FALSE otherwise
+ */
+function twilio_verify_duplicate_number($number) {
+  $result = db_select('twilio_user', 't')
+    ->fields('t')
+    ->condition('t.number', $number)
+    ->execute()
+    ->fetchAssoc();
+  if ($result['number'] == $number) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
  * Implements hook_user_insert().
  */
 function twilio_user_insert(&$edit, $account, $category) {

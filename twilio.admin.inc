@@ -9,19 +9,6 @@
  */
 function twilio_admin_form($form, &$form_state) {
 
-  $library = libraries_detect(TWILIO_LIBRARY);
-  if (empty($library['installed'])) {
-    $twilio_library_status = t('The Twilo library is not currently installed');
-  }
-  else {
-    $twilio_library_status = t('The Twilio library is installed correctly');
-  }
-
-  $form['twilio_library_status'] = array(
-    '#type' => 'markup',
-    '#markup' => $twilio_library_status,
-  );
-
   $form['twilio_account'] = array(
     '#type' => 'textfield',
     '#required' => TRUE,
