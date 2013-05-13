@@ -8,12 +8,22 @@
  * Implements hook_install().
  */
 function twilio_install() {
+  $t = get_t();
+  drupal_set_message($t("Twilio module settings are available under !link", 
+    array( '!link' => l($t('Administer > Site configuration > Twilio'),  'admin/config/system/twilio'))
+  ));
 }
 
 /**
  * Implements hook_install().
  */
 function twilio_uninstall() {
+  // Remove all the twilio variables.
+  variable_del('twilio_account');
+  variable_del('twilio_number');
+  variable_del('twilio_path');
+  variable_del('twilio_registration_form');
+  variable_del('twilio_token');
 }
 
 /**

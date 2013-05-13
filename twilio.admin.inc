@@ -12,14 +12,14 @@ function twilio_admin_form($form, &$form_state) {
   $form['twilio_account'] = array(
     '#type' => 'textfield',
     '#required' => TRUE,
-    '#title' => t('Twilio Account ID'),
+    '#title' => t('Twilio Account SID'),
     '#default_value' => variable_get('twilio_account'),
     '#description' => t('Enter your Twilio account id'),
   );
   $form['twilio_token'] = array(
     '#type' => 'textfield',
     '#required' => TRUE,
-    '#title' => t('Twilio token ID'),
+    '#title' => t('Twilio Auth Token'),
     '#default_value' => variable_get('twilio_token'),
     '#description' => t('Enter your Twilio token id'),
   );

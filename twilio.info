@@ -1,4 +1,4 @@
 name = Twilio
-description = Simple Twilio integration module
+description = Integration the Twilio cloud communication service with Drupal
 core = 7.x
 dependencies[] = libraries
