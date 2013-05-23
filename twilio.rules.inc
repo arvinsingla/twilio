@@ -98,14 +98,14 @@ function twilio_rules_action_info() {
       ),
     ),
   );
-  $actions['twilio_twml_output'] = $defaults + array(
-    'label' => t('Output TwML'),
-    'base' => 'twilio_rules_twml_output',
+  $actions['twilio_twiml_output'] = $defaults + array(
+    'label' => t('Output TwiML'),
+    'base' => 'twilio_rules_twiml_output',
     'parameter' => array(
-      'twml_id' => array(
+      'twiml_id' => array(
         'type' => 'text',
-        'label' => t('TwML'),
-        'options list' => 'twilio_twml_options_list',
+        'label' => t('TwiML'),
+        'options list' => 'twilio_twiml_options_list',
         'restriction' => 'input',
       ),
     ),
@@ -153,9 +153,10 @@ function twilio_rules_condition_number_belongs_to_user($number) {
 }
 
 /**
- * Action: Output TwML
+ * Action: Output TwiML
  */
-function twilio_rules_twml_output($twml_id) {
-  $twml = twilio_twml_load($twml_id);
-  return $twml['data'];
+function twilio_rules_twiml_output($twiml_id) {
+  $twiml = twilio_twiml_load($twiml_id);
+  echo $twiml['data'];
+  return;
 }

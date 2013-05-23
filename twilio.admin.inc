@@ -106,100 +106,90 @@ function twilio_admin_test_form_submit($form, &$form_state) {
 }
 
 /**
- * TwML Manager form.
+ * TwiML Manager form.
  */
-function twilio_twml_manager_form($form, &$form_state, $twml_id = NULL) {
+function twilio_twiml_manager_form($form, &$form_state, $twiml_id = NULL) {
 
-  // Load the TwML data if it exists
-  $twml = twilio_twml_load($twml_id);
-  $twml_list = twilio_twml_load_multiple();
+  // Load the TwiML data if it exists
+  $twiml = twilio_twiml_load($twiml_id);
+  $twiml_list = twilio_twiml_load_multiple();
 
   $form = array();
 
-  if (!empty($twml_list)) {
+  if (!empty($twiml_list)) {
     $form['list'] = array(
-      '#theme' => 'twilio_twml_list',
-      '#twml_list' => $twml_list,
+      '#theme' => 'twilio_twiml_list',
+      '#twiml_list' => $twiml_list,
     );
   }
 
   $form['name'] = array(
     '#title' => t('Name'),
     '#type' => 'textfield',
-    '#default_value' => $twml['name'],
-    '#description' => t('The human-readable name of this TwML.'),
+    '#default_value' => $twiml['name'],
+    '#description' => t('The human-readable name of this TwiML.'),
     '#required' => TRUE,
     '#size' => 30,
   );
 
-  $form['twml_id'] = array(
+  $form['twiml_id'] = array(
     '#type' => 'machine_name',
-    '#default_value' => $twml['twml_id'],
+    '#default_value' => $twiml['twiml_id'],
     '#maxlength' => 32,
-    '#disabled' => $twml,
+    '#disabled' => $twiml,
     '#machine_name' => array(
-      'exists' => 'twilio_twml_load',
+      'exists' => 'twilio_twiml_load',
     ),
-    '#description' => t('A unique machine-readable name for this TwML. It must only contain lowercase letters, numbers, and underscores.'),
+    '#description' => t('A unique machine-readable name for this TwiML. It must only contain lowercase letters, numbers, and underscores.'),
   );
 
   $form['description'] = array(
     '#title' => t('Description'),
     '#type' => 'textfield',
-    '#default_value' => $twml['description'],
-    '#description' => t('The description of this TwML.'),
+    '#default_value' => $twiml['description'],
+    '#description' => t('The description of this TwiML.'),
   );
 
   $form['data'] = array(
-    '#title' => t('TwML'),
+    '#title' => t('TwiML'),
     '#type' => 'textarea',
-    '#default_value' => $twml['data'],
-    '#description' => t('The TwML data.'),
+    '#default_value' => $twiml['data'],
+    '#description' => t('The TwiML data.'),
   );
 
   $form['save'] = array(
-    '#value' => $twml ? t('Update TwML') : t('Create TwML'),
+    '#value' => $twiml ? t('Update TwiML') : t('Create TwiML'),
     '#type' => 'submit',
-    '#name' => $twml ? 'update' : 'save',
-  );
-
-  $form['cancel'] = array(
-    '#value' => t('Cancel'),
-    '#type' => 'submit',
-    '#name' => 'cancel',
+    '#name' => $twiml ? 'update' : 'save',
   );
 
   return $form;
 }
 
 /**
- * Submit callback for TwML Manager form.
+ * Submit callback for TwiML Manager form.
  */
-function twilio_twml_manager_form_submit($form, &$form_state) {
+function twilio_twiml_manager_form_submit($form, &$form_state) {
   // Prep vars.
   $values = $form_state['values'];
   // Create entry in DB.
   if ($form_state['triggering_element']['#name'] == 'save') {
-    twilio_twml_create($values);
+    twilio_twiml_create($values);
   }
   // Over write entry in DB.
   else if ($form_state['triggering_element']['#name'] == 'update') {
-    twilio_twml_update($values);
-  }
-  // Cancel... just start over.
-  else if ($form_state['triggering_element']['#name'] == 'cancel') {
-    drupal_goto(TWILIO_ADMIN_PATH . '/twml');
+    twilio_twiml_update($values);
   }
 }
 
 /**
- * Form constructor for the TwML deletion confirmation form.
+ * Form constructor for the TwiML deletion confirmation form.
  */
-function twilio_twml_delete_confirm($form, &$form_state, $twml = FALSE) {
-  $form['twml'] = array('#type' => 'value', '#value' => $twml);
+function twilio_twiml_delete_confirm($form, &$form_state, $twiml = FALSE) {
+  $form['twiml'] = array('#type' => 'value', '#value' => $twiml);
   return confirm_form($form,
-    t('Are you sure you want to delete %title?', array('%title' => $twml['name'])),
-    TWILIO_ADMIN_PATH . '/twml',
+    t('Are you sure you want to delete %title?', array('%title' => $twiml['name'])),
+    TWILIO_ADMIN_PATH . '/twiml',
     t('This is a permanent action.'),
     t('Delete'),
     t('Cancel')
@@ -207,13 +197,13 @@ function twilio_twml_delete_confirm($form, &$form_state, $twml = FALSE) {
 }
 
 /**
- * Executes TwML deletion.
+ * Executes TwiML deletion.
  */
-function twilio_twml_delete_confirm_submit($form, &$form_state) {
+function twilio_twiml_delete_confirm_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
-    twilio_twml_delete($form_state['values']['twml']['twml_id']);
-    drupal_set_message(t('%title has been deleted.', array('%title' => $form_state['values']['twml']['name'])));
+    twilio_twiml_delete($form_state['values']['twiml']['twiml_id']);
+    drupal_set_message(t('%title has been deleted.', array('%title' => $form_state['values']['twiml']['name'])));
   }
 
-  $form_state['redirect'] = TWILIO_ADMIN_PATH . '/twml';
+  $form_state['redirect'] = TWILIO_ADMIN_PATH . '/twiml';
 }

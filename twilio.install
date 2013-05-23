@@ -57,23 +57,23 @@ function twilio_schema() {
     'primary key' => array('number'),
     'indexes' => array('uid' => array('uid')),
   );
-  $schema['twilio_twml'] = array(
+  $schema['twilio_twiml'] = array(
     'fields' => array(
-      'twml_id' => array(
-        'description' => 'The machine-readable name of this TwML.',
+      'twiml_id' => array(
+        'description' => 'The machine-readable name of this TwiML.',
         'type' => 'varchar',
         'length' => 32,
         'not null' => TRUE,
       ),
       'name' => array(
-        'description' => 'The name of this TwML.',
+        'description' => 'The name of this TwiML.',
         'type' => 'varchar',
         'length' => 255,
         'not null' => TRUE,
         'default' => '',
       ),
       'description' => array(
-        'description' => 'The description of this TwML.',
+        'description' => 'The description of this TwiML.',
         'type' => 'varchar',
         'length' => 255,
         'not null' => TRUE,
@@ -83,10 +83,10 @@ function twilio_schema() {
         'type' => 'blob',
         'not null' => FALSE,
         'size' => 'big',
-        'description' => 'The XML twml config data.',
+        'description' => 'The XML twiml config data.',
       ),
     ),
-    'primary key' => array('twml_id'),
+    'primary key' => array('twiml_id'),
   );
   return $schema;
 }
@@ -121,11 +121,11 @@ function twilio_requirements($phase) {
 }
 
 /**
- * Create new database table {twilio_twml}.
+ * Create new database table {twilio_twiml}.
  */
 function twilio_update_7000() {
   // Get the schema array we've defined.
   $schema = twilio_schema();
   // Create the table.
-  db_create_table('twilio_twml', $schema['twilio_twml']);
+  db_create_table('twilio_twiml', $schema['twilio_twiml']);
 }
