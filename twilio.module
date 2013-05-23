@@ -13,12 +13,13 @@ define('TWILIO_USER_PENDING', 1);
 define('TWILIO_USER_CONFIRMED', 2);
 define('TWILIO_USER_MAX_CHARS', 140);
 define('TWILIO_API_VERSION', '2010-04-01');
+define('TWILIO_ADMIN_PATH', 'admin/config/system/twilio');
 
 /**
  * Implements hook_menu().
  */
 function twilio_menu() {
-  $items['admin/config/system/twilio'] = array(
+  $items[TWILIO_ADMIN_PATH] = array(
     'title' => 'Twilio',
     'description' => 'Administer your twilio settings',
     'page callback' => 'drupal_get_form',
@@ -26,12 +27,32 @@ function twilio_menu() {
     'access arguments' => array('access administration pages'),
     'file' => 'twilio.admin.inc',
   );
-  $items['admin/config/system/twilio/settings'] = array(
+  $items[TWILIO_ADMIN_PATH . '/settings'] = array(
     'title' => 'Twilio Settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
   );
-  $items['admin/config/system/twilio/test'] = array(
+  $items[TWILIO_ADMIN_PATH . '/twml'] = array(
+    'title' => 'TwML Manager',
+    'description' => 'Manage TwML documents.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('twilio_twml_manager_form'),
+    'access arguments' => array('access administration pages'),
+    'file' => 'twilio.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => -5,
+  );
+  $items[TWILIO_ADMIN_PATH . '/twml_delete/%twilio_twml'] = array(
+    'title' => 'TwML Delete',
+    'description' => 'Manage TwML documents.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('twilio_twml_delete_confirm', 5),
+    'access arguments' => array('access administration pages'),
+    'file' => 'twilio.admin.inc',
+    'type' => MENU_CALLBACK,
+    'weight' => -5,
+  );
+  $items[TWILIO_ADMIN_PATH . '/test'] = array(
     'title' => 'Send test message',
     'description' => 'Test your twilio SMS sending',
     'page callback' => 'drupal_get_form',
@@ -39,6 +60,7 @@ function twilio_menu() {
     'access arguments' => array('access administration pages'),
     'file' => 'twilio.admin.inc',
     'type' => MENU_LOCAL_TASK,
+    'weight' => 0,
   );
   $items['twilio/sms'] = array(
     'page callback' => 'twilio_receive_message',
@@ -178,7 +200,7 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
 
     // Twilio REST API version
     $ApiVersion = isset($config['sms_twilio_api']) && $config['sms_twilio_api'] ? $config['sms_twilio_api'] : TWILIO_API_VERSION;
-    
+
       // Instantiate a new Twilio Rest Client
     switch($ApiVersion) {
       case '2010-04-01':
@@ -196,9 +218,9 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
         }
         break;
       case '2008-08-01':
-        // Include the PHP TwilioRest library  
+        // Include the PHP TwilioRest library
         $client = new TwilioRestClient($account_sid, $auth_token);
-  
+
         switch ($command) {
           case 'sendmsg':
             $response = $client->request("/$ApiVersion/Accounts/$AccountSid/SMS/Messages",
@@ -217,7 +239,7 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
         );
         return $result;
     }
-    
+
     watchdog('Twilio', print_r($response, TRUE));
     // Check for HTTP errors.
     if (($ApiVersion == '2008-08-01') and ($response->IsError)) {
@@ -378,7 +400,7 @@ function twilio_user_save(&$edit, $account, $category) {
  */
 function twilio_user_login(&$edit, $account) {
   // If the users mobile number is in the verification state let them know they
-  // need to enter their verification code and link to their settings page. 
+  // need to enter their verification code and link to their settings page.
   if (user_access('edit own sms number') && !empty($account->twilio_user) && $account->twilio_user['status'] == 1) {
     $account_link = l(t("account settings page"), 'user/' . $account->uid . '/edit/twilio');
     drupal_set_message(t("You must confirm your phone number by entering the verification code sent to you via SMS. Go to the !link to enter your verification code.", array('!link' => $account_link)), 'warning');
@@ -392,9 +414,9 @@ function twilio_user_login(&$edit, $account) {
  *   The phone number we are searching for
  * @param $return_user
  *   Boolean flag to return a user object if TRUE
- *   
+ *
  * @results bool
- *   TRUE or FALSE based on query, User object if $number belongs to user and $return_user is TRUE and 
+ *   TRUE or FALSE based on query, User object if $number belongs to user and $return_user is TRUE and
  */
 function twilio_verify_number($number, $return_user = FALSE) {
   $result = db_select('twilio_user', 't')
@@ -478,4 +500,153 @@ function twilio_user_send_confirmation($account, $number) {
   $message = "Confirmation code: $code";
   twilio_send($number, $message);
   return $account;
+}
+
+/**
+ * Load TwML data from the DB.
+ *
+ * @param $twml_id
+ *   String - The TwML machine name to load.
+ *
+ * @return The TwML data, or FALSE if none.
+ */
+function twilio_twml_load($twml_id = FALSE) {
+  if (!empty($twml_id)) {
+    $result = db_select('twilio_twml', 't')
+      ->fields('t')
+      ->condition('twml_id', $twml_id,'=')
+      ->execute()
+      ->fetchAssoc();
+    return $result;
+  }
+  return FALSE;
+}
+
+/**
+ * Load TwML data from the DB.
+ *
+ * @param $twml_ids
+ *   Array- An array of TwML machine name to load.
+ *
+ * @return Array of TwML documents or FALSE
+ */
+function twilio_twml_load_multiple($twml_ids = FALSE) {
+  if (!empty($twml_ids) && is_array($twml_ids)) {
+    $result = db_select('twilio_twml', 't')
+      ->fields('t')
+      ->condition('twml_id', $twml_ids)
+      ->execute()
+      ->fetchAll();
+    return $result;
+  }
+  else {
+    $result = db_select('twilio_twml', 't')
+      ->fields('t')
+      ->execute()
+      ->fetchAll();
+    return $result;
+  }
+  return FALSE;
+}
+
+/**
+ * Create a TwML entry in the DB.
+ *
+ * @param $values
+ *   Array - A keyed array containing all the information we need.
+ *
+ * @return TRUE or FALSE
+ */
+function twilio_twml_create($values = FALSE) {
+  // If no values, return FALSE.
+  if (!$values) {
+    return FALSE;
+  }
+
+  // Create the record.
+  return db_insert('twilio_twml')
+    ->fields(array(
+      'twml_id' => $values['twml_id'],
+      'name' => $values['name'],
+      'description' => $values['description'],
+      'data' => $values['data'],
+    ))
+    ->execute();
+}
+
+/**
+ * Update a TwML entry in the DB.
+ *
+ * @param $values
+ *   Array - A keyed array containing all the information we need.
+ *
+ * @return TRUE or FALSE
+ */
+function twilio_twml_update($values = FALSE) {
+  // If no values, return FALSE.
+  if (!$values) {
+    return FALSE;
+  }
+
+  // Create the record.
+  return db_update('twilio_twml') // Table name no longer needs {}
+    ->fields(array(
+      'name' => $values['name'],
+      'description' => $values['description'],
+      'data' => $values['data'],
+    ))
+    ->condition('twml_id', $values['twml_id'], '=')
+    ->execute();
+}
+
+/**
+ * Implements hook_theme
+ */
+function twilio_theme($existing, $type, $theme, $path) {
+  return array(
+    'twilio_twml_list' => array(
+      'variables' => array(
+        'twml_list' => NULL,
+      ),
+    ),
+  );
+}
+
+/**
+ * Theme function for TwML lists
+ */
+function theme_twilio_twml_list($variables) {
+
+  if (empty($variables['twml_list'])) {
+    return FALSE;
+  }
+
+  $rows = array();
+  foreach ($variables['twml_list'] as $row) {
+    $edit = l('Edit', TWILIO_ADMIN_PATH . '/twml/' . $row->twml_id);
+    $delete = l('Delete', TWILIO_ADMIN_PATH . '/twml_delete/' . $row->twml_id);
+    $rows[] = array($row->name, $row->description, $edit . ' | ' . $delete);
+  }
+
+  $variables = array(
+    'header' => array('Name', 'Description', 'Operations'),
+    'rows' => $rows,
+  );
+
+  return theme('table', $variables);
+
+}
+
+/**
+ * Update a TwML entry in the DB.
+ *
+ * @param $twml_id
+ *   String - The machine name of the TwML to delete.
+ *
+ * @return TRUE or FALSE
+ */
+function twilio_twml_delete($twml_id) {
+  return db_delete('twilio_twml')
+    ->condition('twml_id', $twml_id)
+    ->execute();
 }

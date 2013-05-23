@@ -9,7 +9,7 @@
  */
 function twilio_install() {
   $t = get_t();
-  drupal_set_message($t("Twilio module settings are available under !link", 
+  drupal_set_message($t("Twilio module settings are available under !link",
     array( '!link' => l($t('Administer > Site configuration > Twilio'),  'admin/config/system/twilio'))
   ));
 }
@@ -57,6 +57,37 @@ function twilio_schema() {
     'primary key' => array('number'),
     'indexes' => array('uid' => array('uid')),
   );
+  $schema['twilio_twml'] = array(
+    'fields' => array(
+      'twml_id' => array(
+        'description' => 'The machine-readable name of this TwML.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+      ),
+      'name' => array(
+        'description' => 'The name of this TwML.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'description' => array(
+        'description' => 'The description of this TwML.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'data' => array(
+        'type' => 'blob',
+        'not null' => FALSE,
+        'size' => 'big',
+        'description' => 'The XML twml config data.',
+      ),
+    ),
+    'primary key' => array('twml_id'),
+  );
   return $schema;
 }
 
@@ -87,4 +118,14 @@ function twilio_requirements($phase) {
     }
   }
   return $requirements;
+}
+
+/**
+ * Create new database table {twilio_twml}.
+ */
+function twilio_update_7000() {
+  // Get the schema array we've defined.
+  $schema = twilio_schema();
+  // Create the table.
+  db_create_table('twilio_twml', $schema['twilio_twml']);
 }
