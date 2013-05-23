@@ -26,6 +26,15 @@ function twilio_rules_event_info() {
         ),
       ),
     ),
+    'twilio_voice_incoming' => $defaults + array(
+      'label' => t('Drupal receives a voice call'),
+      'variables' => array(
+        'number' => array(
+          'type' => 'text',
+          'label' => t('Number'),
+        ),
+      ),
+    ),
     'twilio_sms_incoming_from_user' => $defaults + array(
       'label' => t('Drupal receives an SMS from a site user'),
       'variables' => array(
@@ -89,6 +98,18 @@ function twilio_rules_action_info() {
       ),
     ),
   );
+  $actions['twilio_twml_output'] = $defaults + array(
+    'label' => t('Output TwML'),
+    'base' => 'twilio_rules_twml_output',
+    'parameter' => array(
+      'twml_id' => array(
+        'type' => 'text',
+        'label' => t('TwML'),
+        'options list' => 'twilio_twml_options_list',
+        'restriction' => 'input',
+      ),
+    ),
+  );
   $actions['twilio_send_sms_to_number'] = $defaults + array(
     'label' => t('Send an SMS to a number'),
     'base' => 'twilio_rules_action_send_sms_to_number',
@@ -129,4 +150,12 @@ function twilio_rules_action_send_sms_to_number($number, $message) {
  */
 function twilio_rules_condition_number_belongs_to_user($number) {
   return twilio_verify_number($number);
+}
+
+/**
+ * Action: Output TwML
+ */
+function twilio_rules_twml_output($twml_id) {
+  $twml = twilio_twml_load($twml_id);
+  return $twml['data'];
 }

@@ -306,12 +306,34 @@ function twilio_sms_incoming($number, $message, $options = array()) {
   }
 }
 
+/**
+ * Invokes twilio_voice_incoming hook.
+ *
+ * @param string $number
+ *   The sender's mobile number.
+ *
+ */
+function twilio_voice_incoming($number, $options = array()) {
+  // Invoke a hook for the incoming message so other modules can do things with it.
+  module_invoke_all('twilio_voice_incoming', $number, $options);
+  if (module_exists('rules')) {
+    rules_invoke_event('twilio_voice_incoming', $number);
+  }
+}
 
 /**
  * Callback for incoming voice calls.
  */
 function twilio_receive_voice() {
-  module_invoke_all('twilio_voice_incoming');
+  if (!empty($_REQUEST['From'])) {
+    $number = str_replace('+1', '', $_REQUEST['From']);
+    $options = array();
+    if (!empty($_REQUEST['To'])) {
+      $options['receiver'] = $_REQUEST['To'];
+    }
+    watchdog('Twilio', 'A voice call from @number was received.', array('@number' => $number));
+    twilio_voice_incoming($number, $options);
+  }
 }
 
 /**
@@ -649,4 +671,16 @@ function twilio_twml_delete($twml_id) {
   return db_delete('twilio_twml')
     ->condition('twml_id', $twml_id)
     ->execute();
+}
+
+/**
+ * Generate an options list of all TwMLs.
+ */
+function twilio_twml_options_list() {
+  $twmls = array();
+  foreach (array_filter(twilio_twml_load_multiple()) as $twml) {
+    $twmls[$twml->twml_id] = $twml->name;
+  }
+
+  return $twmls;
 }
