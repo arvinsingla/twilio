@@ -53,8 +53,8 @@ function twilio_menu() {
     'weight' => -5,
   );
   $items[TWILIO_ADMIN_PATH . '/test'] = array(
-    'title' => 'Send test message',
-    'description' => 'Test your twilio SMS sending',
+    'title' => 'Send Test SMS message',
+    'description' => 'Test your Twilio SMS functionality',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('twilio_admin_test_form'),
     'access arguments' => array('access administration pages'),
@@ -69,6 +69,12 @@ function twilio_menu() {
   );
   $items['twilio/voice'] = array(
     'page callback' => 'twilio_receive_voice',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  $items['twilio/twiml/%twilio_twiml'] = array(
+    'page callback' => 'twilio_twiml_display',
+    'page arguments' => array(2),
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
@@ -376,14 +382,14 @@ function twilio_verify_duplicate_number($number) {
  * Implements hook_user_insert().
  */
 function twilio_user_insert(&$edit, $account, $category) {
-  twilio_user_save(&$edit, $account, $category);
+  twilio_user_save($edit, $account, $category);
 }
 
 /**
  * Implements hook_user_update().
  */
 function twilio_user_update(&$edit, $account, $category) {
-  twilio_user_save(&$edit, $account, $category);
+  twilio_user_save($edit, $account, $category);
 }
 
 /**
@@ -572,6 +578,13 @@ function twilio_twiml_load_multiple($twiml_ids = FALSE) {
 }
 
 /**
+ * Display TwiML to the screen
+ */
+function twilio_twiml_display($twiml) {
+  echo $twiml['data'];
+}
+
+/**
  * Create a TwiML entry in the DB.
  *
  * @param $values
@@ -647,11 +660,12 @@ function theme_twilio_twiml_list($variables) {
   foreach ($variables['twiml_list'] as $row) {
     $edit = l('Edit', TWILIO_ADMIN_PATH . '/twiml/' . $row->twiml_id);
     $delete = l('Delete', TWILIO_ADMIN_PATH . '/twiml_delete/' . $row->twiml_id);
-    $rows[] = array($row->name, $row->description, $edit . ' | ' . $delete);
+    $url = $GLOBALS['base_url'] . '/twilio/twiml/' . $row->twiml_id;
+    $rows[] = array($row->name, $row->description, $url, $edit . ' | ' . $delete);
   }
 
   $variables = array(
-    'header' => array('Name', 'Description', 'Operations'),
+    'header' => array('Name', 'Description', 'URL', 'Operations'),
     'rows' => $rows,
   );
 
