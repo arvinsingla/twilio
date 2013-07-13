@@ -160,7 +160,7 @@ function twilio_send($number, $message) {
     case TWILIO_SMS_LONG_TRUNCATE:
       // Truncate the message to 160 characters
       $message_truncated = substr($message,0,160);
-      return twilio_command('sendmsg', array('number' => $number, 'message' => $message_truncated));
+      twilio_command('sendmsg', array('number' => $number, 'message' => $message_truncated));
     case TWILIO_SMS_LONG_MULTIPLE:
       // Break up the message into 160 character chunks and send multiple
       $iterator = ceil(strlen($message) / 160);
