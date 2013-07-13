@@ -41,6 +41,13 @@ function twilio_admin_form($form, &$form_state) {
     '#description' => t('Enter your Twilio phone number'),
     '#element_validate' => array('twilio_admin_phone_validate'),
   );
+  $form['twilio_long_sms'] = array(
+    '#type' => 'radios',
+    '#title' => t('Long SMS handling'),
+    '#description' => t('How would you like to handle SMS messages longer than 160 characters.'),
+    '#options' => array(t('Send multiple messages'), t('Truncate message to 160 characters')),
+    '#default_value' => variable_get('twilio_long_sms', TWILIO_SMS_LONG_MULTIPLE),
+  );
   $form['twilio_registration_form'] = array(
     '#type' => 'radios',
     '#title' => t('Show mobile fields during user registration'),

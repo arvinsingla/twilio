@@ -14,6 +14,8 @@ define('TWILIO_USER_CONFIRMED', 2);
 define('TWILIO_USER_MAX_CHARS', 140);
 define('TWILIO_API_VERSION', '2010-04-01');
 define('TWILIO_ADMIN_PATH', 'admin/config/system/twilio');
+define('TWILIO_SMS_LONG_TRUNCATE', 0);
+define('TWILIO_SMS_LONG_MULTIPLE', 1);
 
 /**
  * Implements hook_menu().
@@ -153,7 +155,19 @@ function twilio_libraries_info() {
  *   The message to send to the recipient
  */
 function twilio_send($number, $message) {
-  return twilio_command('sendmsg', array('number' => $number, 'message' => $message));
+  
+  switch(variable_get('twilio_long_sms', TWILIO_SMS_LONG_MULTIPLE)) {
+    case TWILIO_SMS_LONG_TRUNCATE:
+      // Truncate the message to 160 characters
+      $message_truncated = substr($message,0,160);
+      return twilio_command('sendmsg', array('number' => $number, 'message' => $message_truncated));
+    case TWILIO_SMS_LONG_MULTIPLE:
+      // Break up the message into 160 character chunks and send multiple
+      $iterator = ceil(strlen($message) / 160);
+      for ($i = 0; $i < $iterator; $i++) {
+        twilio_command('sendmsg', array('number' => $number, 'message' => substr($message, $i * 160, 160)));
+      }
+  }
 }
 
 /**
