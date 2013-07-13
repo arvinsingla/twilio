@@ -581,7 +581,12 @@ function twilio_twiml_load_multiple($twiml_ids = FALSE) {
  * Display TwiML to the screen
  */
 function twilio_twiml_display($twiml) {
-  echo $twiml['data'];
+  if (module_exists('php')) {
+    echo php_eval($twiml['data']);
+  }
+  else {
+    echo $twiml['data'];
+  }
 }
 
 /**

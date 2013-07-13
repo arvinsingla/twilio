@@ -174,11 +174,19 @@ function twilio_twiml_manager_form($form, &$form_state, $twiml_id = NULL) {
     '#description' => t('The description of this TwiML.'),
   );
 
+  // If the PHP module is enabled show a different description
+  if (module_exists('php')) {
+    $description = t('The TwiML. You may use PHP code. You should include &lt;?php ?&gt; tags.');
+  }
+  else {
+    $description= t('The TwiML. If you wish to use PHP code you must enable the !phpmodule', array('!phpmodule' => l('PHP filter module', 'admin/modules')));
+  }
+  
   $form['data'] = array(
     '#title' => t('TwiML'),
     '#type' => 'textarea',
     '#default_value' => $twiml['data'],
-    '#description' => t('The TwiML data.'),
+    '#description' => $description,
   );
 
   $form['save'] = array(
