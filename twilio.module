@@ -14,8 +14,8 @@ define('TWILIO_USER_CONFIRMED', 2);
 define('TWILIO_USER_MAX_CHARS', 140);
 define('TWILIO_API_VERSION', '2010-04-01');
 define('TWILIO_ADMIN_PATH', 'admin/config/system/twilio');
-define('TWILIO_SMS_LONG_TRUNCATE', 0);
-define('TWILIO_SMS_LONG_MULTIPLE', 1);
+define('TWILIO_SMS_LONG_MULTIPLE', 0);
+define('TWILIO_SMS_LONG_TRUNCATE', 1);
 
 /**
  * Implements hook_menu().
