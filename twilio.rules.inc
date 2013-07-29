@@ -114,6 +114,11 @@ function twilio_rules_action_info() {
     'label' => t('Send an SMS to a number'),
     'base' => 'twilio_rules_action_send_sms_to_number',
     'parameter' => array(
+      'country' => array(
+        'type' => 'text',
+        'label' => t('Country code'),
+        'options list' => 'twilio_country_codes',
+      ),
       'number' => array(
         'type' => 'text',
         'label' => t('Number'),
@@ -132,17 +137,15 @@ function twilio_rules_action_info() {
  */
 function twilio_rules_action_send_sms_to_user($account, $message) {
   if (!empty($account->twilio_user['number']) && $account->twilio_user['status'] == 2) {
-    twilio_send($account->twilio_user['number'], $message);
+    twilio_send($account->twilio_user['number'], $message, $account->twilio_user['country']);
   }
 }
 
 /**
  * Action: Send an SMS to a number.
  */
-function twilio_rules_action_send_sms_to_number($number, $message) {
-  if (twilio_validate_number($number)) {
-    twilio_send($number, $message);
-  }
+function twilio_rules_action_send_sms_to_number($number, $message, $country) {
+  twilio_send($number, $message, $country);
 }
 
 /**
