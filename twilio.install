@@ -42,6 +42,12 @@ function twilio_schema() {
         'not null' => TRUE,
         'length' => 32,
       ),
+      'country' => array(
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length' => 32,
+        'default' => '1',
+      ),
       'status' => array(
         'type' => 'int',
         'unsigned' => TRUE,
@@ -128,4 +134,17 @@ function twilio_update_7000() {
   $schema = twilio_schema();
   // Create the table.
   db_create_table('twilio_twiml', $schema['twilio_twiml']);
+}
+
+/**
+ * Add 'country' column to {twilio_user} table
+ */
+function twilio_update_7001() {
+  $spec = array(
+    'type' => 'varchar',
+    'not null' => TRUE,
+    'length' => 32,
+    'default' => '1',
+  ); 
+  db_add_field( 'twilio_user', 'country', $spec);
 }

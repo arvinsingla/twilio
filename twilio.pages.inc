@@ -29,6 +29,11 @@ function twilio_user_settings_form($form, &$form_state, $account) {
   );
 
   if (empty($account->twilio_user['status'])) {
+    $form['countrycode'] = array(
+      '#type' => 'select',
+      '#title' => t('Country code'),
+      '#options' => twilio_country_codes(),
+    );
     $form['number'] = array(
       '#type' => 'textfield',
       '#title' => t('Phone number'),
@@ -89,7 +94,7 @@ function twilio_user_settings_form($form, &$form_state, $account) {
     $form['twilio_user']['number'] = array(
       '#type' => 'item',
       '#title' => t('Your mobile phone number'),
-      '#markup' => $account->twilio_user['number'],
+      '#markup' => '+' . $account->twilio_user['country'] . ' ' . $account->twilio_user['number'],
       '#description' => t('Your mobile phone number has been confirmed.'),
     );
     $form['reset'] = array(
@@ -122,8 +127,9 @@ function twilio_user_settings_ajax_callback($form, &$form_state) {
  * @see http://drupal.org/node/1354
  */
 function twilio_user_settings_add_form_validate($form, &$form_state) {
-  if (!twilio_validate_number($form_state['values']['number'])) {
-    form_set_error('number', t('You must enter a valid 10 digit phone number'));
+  $value = $form_state['values']['number'];
+  if (!is_numeric($value) || intval($value) != $value) {
+    form_set_error('number', t('You must enter a valid phone number'));
   }
   elseif (twilio_verify_duplicate_number($form_state['values']['number'])) {
     form_set_error('number', t('This number is already in use and cannot be assigned to more than one account'));
@@ -140,7 +146,7 @@ function twilio_user_settings_add_form_submit($form, &$form_state, $account = NU
   if (!$account) {
     $account = user_load($form_state['values']['uid']);
   }
-  $account = twilio_user_send_confirmation($account, $form_state['values']['number']);
+  $account = twilio_user_send_confirmation($account, $form_state['values']['number'], $form_state['values']['countrycode']);
   $form_state['values']['account'] = $account;
   $form_state['rebuild'] = TRUE;
   drupal_set_message(t("A confirmation code has been sent to your mobile device"), 'status');

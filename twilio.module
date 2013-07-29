@@ -16,6 +16,7 @@ define('TWILIO_API_VERSION', '2010-04-01');
 define('TWILIO_ADMIN_PATH', 'admin/config/system/twilio');
 define('TWILIO_SMS_LONG_MULTIPLE', 0);
 define('TWILIO_SMS_LONG_TRUNCATE', 1);
+define('TWILIO_DEFAULT_COUNTRY_CODE', 1);
 
 /**
  * Implements hook_menu().
@@ -153,25 +154,28 @@ function twilio_libraries_info() {
  *
  * @param string $message
  *   The message to send to the recipient
+ *
+ * @param string $country
+ *   The country code for the phone number
  */
-function twilio_send($number, $message) {
+function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE) {
   
   switch(variable_get('twilio_long_sms', TWILIO_SMS_LONG_MULTIPLE)) {
     case TWILIO_SMS_LONG_TRUNCATE:
       // Truncate the message to 160 characters
       $message_truncated = substr($message,0,160);
-      twilio_command('sendmsg', array('number' => $number, 'message' => $message_truncated));
+      twilio_command('sendmsg', array('country' => $country, 'number' => $number, 'message' => $message_truncated));
     case TWILIO_SMS_LONG_MULTIPLE:
       // Break up the message into 160 character chunks and send multiple
       $iterator = ceil(strlen($message) / 160);
       for ($i = 0; $i < $iterator; $i++) {
-        twilio_command('sendmsg', array('number' => $number, 'message' => substr($message, $i * 160, 160)));
+        twilio_command('sendmsg', array('country' => $country, 'number' => $number, 'message' => substr($message, $i * 160, 160)));
       }
   }
 }
 
 /**
- * Validate 10 digit phone numbers.
+ * Validate 10 digit phone numbers. 
  *
  * @param string $number
  *   A potential phone number
@@ -231,7 +235,7 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
           case 'sendmsg':
             $response  = $client->account->sms_messages->create(
               variable_get('twilio_number'),
-              $data['number'],
+              '+' . $data['country'] . $data['number'],
               $data['message']
             );
             break;
@@ -245,7 +249,7 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
           case 'sendmsg':
             $response = $client->request("/$ApiVersion/Accounts/$AccountSid/SMS/Messages",
               "POST", array(
-              "To" => $data['number'],
+              "To" => '+' . $data['country'] . $data['number'],
               "From" => variable_get('twilio_number'),
               "Body" => $data['message'],
             ));
@@ -295,7 +299,7 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
 function twilio_receive_message() {
   if (!empty($_REQUEST['From']) && !empty($_REQUEST['Body'])) {
     $number = str_replace('+1', '', $_REQUEST['From']);
-    $message = check_plain($_REQUEST['Body']);
+    $message = check_plain(htmlspecialchars_decode($_REQUEST['Body'], ENT_QUOTES));
     $options = array();
     if (!empty($_REQUEST['To'])) {
       $options['receiver'] = $_REQUEST['To'];
@@ -361,7 +365,7 @@ function twilio_receive_voice() {
  */
 function twilio_user_load($users) {
   $result = db_select('twilio_user', 'u')
-    ->fields('u', array('uid', 'number', 'status', 'code'))
+    ->fields('u', array('uid', 'country', 'number', 'status', 'code'))
     ->condition('uid', array_keys($users), 'IN')
     ->execute();
   foreach ($result as $record) {
@@ -487,6 +491,11 @@ function twilio_form_user_register_form_alter(&$form, &$form_state, $form_id) {
     else {
       $required = FALSE;
     }
+    $form['account']['countrycode'] = array(
+      "#type" => 'select',
+      '#options' => twilio_country_codes(),
+      '#title' => t('Country code'),
+    );
     $form['account']['number'] = array(
       '#type' => 'textfield',
       '#title' => t('Phone number'),
@@ -501,10 +510,11 @@ function twilio_form_user_register_form_alter(&$form, &$form_state, $form_id) {
  * Custom validation function for phone numbers during registration.
  */
 function twilio_register_validate($form, &$form_state) {
-  if (!twilio_validate_number($form_state['values']['number'])) {
-    form_set_error('number', t('You must enter a valid 10 digit phone number'));
+  $value = $form_state['values']['number'];
+  if (!is_numeric($value) || intval($value) != $value) {
+    form_set_error('number', t('You must enter a valid phone number'));
   }
-  elseif (twilio_verify_number($form_state['values']['number'])) {
+  elseif (twilio_verify_number($value)) {
     form_set_error('number', t('This number is already in use and cannot be assigned to more than one account'));
   }
 }
@@ -514,7 +524,7 @@ function twilio_register_validate($form, &$form_state) {
  */
 function twilio_register_submit($form, &$form_state) {
   $account = user_load($form_state['values']['uid']);
-  twilio_user_send_confirmation($account, $form_state['values']['number']);
+  twilio_user_send_confirmation($account, $form_state['values']['number'], $form_state['values']['countrycode']);
 }
 
 /**
@@ -524,23 +534,27 @@ function twilio_register_submit($form, &$form_state) {
  *   The user object of the account to message
  *
  * @param string $number
- *   The phone number to send the message to
+ *   The phone number to send the message
+ *
+ * @param string $country
+ *   The country code for the number
  *
  * @todo Please document this function.
  * @see http://drupal.org/node/1354
  */
-function twilio_user_send_confirmation($account, $number) {
+function twilio_user_send_confirmation($account, $number, $country) {
   $code = rand(1000, 9999);
   $data = array(
     'uid' => $account->uid,
     'number' => $number,
+    'country' => $country,
     'status' => TWILIO_USER_PENDING,
     'code' => $code,
   );
 
   $account = user_save($account, array('twilio' => $data), 'twilio');
   $message = "Confirmation code: $code";
-  twilio_send($number, $message);
+  twilio_send($number, $message, $country);
   return $account;
 }
 
@@ -714,6 +728,224 @@ function twilio_twiml_options_list() {
   foreach (array_filter(twilio_twiml_load_multiple()) as $twiml) {
     $twimls[$twiml->twiml_id] = $twiml->name;
   }
-
   return $twimls;
+}
+
+/**
+ * Returns an array of E.164 international country calling codes
+ *
+ * @return array Associative array of country calling codes and country names.
+ */
+function twilio_country_codes() {
+  return array(
+    1 => "USA / Canada / Dominican Rep. / Puerto Rico",
+    93 => "Afghanistan",
+    355 => "Albania",
+    213 => "Algeria",
+    376 => "Andorra",
+    244 => "Angola",
+    1264 => "Anguilla",
+    1268 => "Antigua & Barbuda",
+    54 => "Argentina",
+    374 => "Armenia",
+    297 => "Aruba",
+    61 => "Australia",
+    43 => "Austria",
+    994 => "Azerbaijan",
+    1242 => "Bahamas",
+    973 => "Bahrain",
+    880 => "Bangladesh",
+    1246 => "Barbados",
+    375 => "Belarus",
+    32 => "Belgium",
+    501 => "Belize",
+    229 => "Benin",
+    1441 => "Bermuda",
+    975 => "Bhutan",
+    591 => "Bolivia",
+    387 => "Bosnia-Herzegovina",
+    267 => "Botswana",
+    55 => "Brazil",
+    1284 => "British Virgin Islands",
+    673 => "Brunei",
+    359 => "Bulgaria",
+    226 => "Burkina Faso",
+    257 => "Burundi",
+    855 => "Cambodia",
+    237 => "Cameroon",
+    34 => "Canary Islands",
+    238 => "Cape Verde",
+    1345 => "Cayman Islands",
+    236 => "Central African Republic",
+    235 => "Chad",
+    56 => "Chile",
+    86 => "China",
+    57 => "Colombia",
+    269 => "Comoros",
+    242 => "Congo",
+    243 => "Democratic Republic Congo",
+    682 => "Cook Islands",
+    385 => "Croatia",
+    53 => "Cuba",
+    357 => "Cyprus",
+    420 => "Czech Republic",
+    45 => "Denmark",
+    253 => "Djibouti",
+    1767 => "Dominica",
+    670 => "East Timor",
+    593 => "Ecuador",
+    20 => "Egypt",
+    503 => "El Salvador",
+    240 => "Equatorial Guinea",
+    372 => "Estonia",
+    251 => "Ethiopia",
+    500 => "Falkland Islands",
+    298 => "Faroe Islands",
+    679 => "Fiji",
+    358 => "Finland",
+    33 => "France",
+    594 => "French Guiana",
+    689 => "French Polynesia",
+    241 => "Gabon",
+    220 => "Gambia",
+    995 => "Georgia",
+    49 => "Germany",
+    233 => "Ghana",
+    350 => "Gibraltar",
+    881 => "Global Mobile Satellite",
+    30 => "Greece",
+    299 => "Greenland",
+    1473 => "Grenada",
+    590 => "Guadeloupe",
+    1671 => "Guam",
+    502 => "Guatemala",
+    224 => "Guinea",
+    592 => "Guyana",
+    509 => "Haiti",
+    504 => "Honduras",
+    852 => "HongKong",
+    36 => "Hungary",
+    354 => "Iceland",
+    91 => "India",
+    62 => "Indonesia",
+    98 => "Iran",
+    964 => "Iraq",
+    353 => "Ireland",
+    972 => "Israel",
+    39 => "Italy / Vatican City State",
+    225 => "Ivory Coast",
+    1876 => "Jamaica",
+    81 => "Japan",
+    962 => "Jordan",
+    254 => "Kenya",
+    82 => "Korea (South)",
+    965 => "Kuwait",
+    996 => "Kyrgyzstan",
+    856 => "Lao",
+    371 => "Latvia",
+    961 => "Lebanon",
+    266 => "Lesotho",
+    231 => "Liberia",
+    218 => "Libya",
+    423 => "Liechtenstein",
+    370 => "Lithuania",
+    352 => "Luxembourg",
+    853 => "Macau",
+    389 => "Macedonia",
+    261 => "Madagascar",
+    265 => "Malawi",
+    60 => "Malaysia",
+    960 => "Maldives",
+    223 => "Mali",
+    356 => "Malta",
+    596 => "Martinique",
+    222 => "Mauritania",
+    230 => "Mauritius",
+    269 => "Mayotte Island (Comoros)",
+    52 => "Mexico",
+    373 => "Moldova",
+    377 => "Monaco (Kosovo)",
+    976 => "Mongolia",
+    382 => "Montenegro",
+    1664 => "Montserrat",
+    212 => "Morocco",
+    258 => "Mozambique",
+    95 => "Myanmar",
+    264 => "Namibia",
+    977 => "Nepal",
+    31 => "Netherlands",
+    599 => "Netherlands Antilles",
+    687 => "New Caledonia",
+    64 => "New Zealand",
+    505 => "Nicaragua",
+    227 => "Niger",
+    234 => "Nigeria",
+    47 => "Norway",
+    968 => "Oman",
+    92 => "Pakistan",
+    970 => "Palestine (+970)",
+    9725 => "Palestine (+9725)",
+    507 => "Panama",
+    675 => "Papua New Guinea",
+    595 => "Paraguay",
+    51 => "Peru",
+    63 => "Philippines",
+    48 => "Poland",
+    351 => "Portugal",
+    974 => "Qatar",
+    262 => "Reunion",
+    40 => "Romania",
+    7 => "Russia / Kazakhstan",
+    250 => "Rwanda",
+    1670 => "Saipan",
+    1684 => "Samoa (American)",
+    685 => "Samoa (Western)",
+    378 => "San Marino",
+    882 => "Satellite-Thuraya",
+    966 => "Saudi Arabia",
+    221 => "Senegal",
+    381 => "Serbia",
+    248 => "Seychelles",
+    232 => "Sierra Leone",
+    65 => "Singapore",
+    421 => "Slovakia",
+    386 => "Slovenia",
+    252 => "Somalia",
+    27 => "South Africa",
+    34 => "Spain",
+    94 => "Sri Lanka",
+    1869 => "St. Kitts And Nevis",
+    1758 => "St. Lucia",
+    1784 => "St. Vincent",
+    249 => "Sudan",
+    597 => "Suriname",
+    268 => "Swaziland",
+    46 => "Sweden",
+    41 => "Switzerland",
+    963 => "Syria",
+    886 => "Taiwan",
+    992 => "Tajikistan",
+    255 => "Tanzania",
+    66 => "Thailand",
+    228 => "Togo",
+    676 => "Tonga Islands",
+    1868 => "Trinidad and Tobago",
+    216 => "Tunisia",
+    90 => "Turkey",
+    993 => "Turkmenistan",
+    1649 => "Turks and Caicos Islands",
+    256 => "Uganda",
+    44 => "UK / Isle of Man / Jersey / Guernsey",
+    380 => "Ukraine",
+    971 => "United Arab Emirates",
+    598 => "Uruguay",
+    998 => "Uzbekistan",
+    678 => "Vanuatu",
+    58 => "Venezuela",
+    84 => "Vietnam",
+    967 => "Yemen",
+    260 => "Zambia",
+    255 => "Zanzibar",
+    263 => "Zimbabwe",
+  );
 }

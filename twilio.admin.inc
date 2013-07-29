@@ -98,10 +98,16 @@ function twilio_admin_phone_validate($element, &$form_state, $form) {
  * Administrative testing form for SMS.
  */
 function twilio_admin_test_form($form, &$form_state) {
+  $form['country'] = array(
+    '#type' => 'select',
+    '#title' => 'Country code',
+    '#options' => twilio_country_codes(),
+  );
   $form['number'] = array(
     '#type' => 'textfield',
     '#required' => TRUE,
     '#title' => 'Phone Number',
+    '#description' => t('include all numbers except the country code')
   );
   $form['message'] = array(
     '#type' => 'textarea',
@@ -119,12 +125,9 @@ function twilio_admin_test_form($form, &$form_state) {
  * Validation handler for the administrative test message form.
  */
 function twilio_admin_test_form_validate($form, &$form_state) {
-  $number = twilio_validate_number($form_state['values']['number']);
-  if ($number) {
-    $form_state['values']['number'] = $number;
-  }
-  else {
-    form_set_error('number', t('You must enter a valid 10 digit phone number'));
+  $value = $form_state['values']['number'];
+  if (!is_numeric($value) || intval($value) != $value) {
+    form_set_error('number', t('You must enter a valid phone number'));
   }
 }
 
@@ -132,7 +135,7 @@ function twilio_admin_test_form_validate($form, &$form_state) {
  * Submit handler for the administrative test message testing form.
  */
 function twilio_admin_test_form_submit($form, &$form_state) {
-  twilio_send($form_state['values']['number'], $form_state['values']['message']);
+  twilio_send($form_state['values']['number'], $form_state['values']['message'], $form_state['values']['country']);
   drupal_set_message(t('Your message has been sent'));
 }
 
