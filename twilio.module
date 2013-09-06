@@ -165,12 +165,14 @@ function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE) 
       // Truncate the message to 160 characters
       $message_truncated = substr($message,0,160);
       twilio_command('sendmsg', array('country' => $country, 'number' => $number, 'message' => $message_truncated));
+      break;
     case TWILIO_SMS_LONG_MULTIPLE:
       // Break up the message into 160 character chunks and send multiple
       $iterator = ceil(strlen($message) / 160);
       for ($i = 0; $i < $iterator; $i++) {
         twilio_command('sendmsg', array('country' => $country, 'number' => $number, 'message' => substr($message, $i * 160, 160)));
       }
+      break;
   }
 }
 
