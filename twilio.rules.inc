@@ -144,7 +144,7 @@ function twilio_rules_action_send_sms_to_user($account, $message) {
 /**
  * Action: Send an SMS to a number.
  */
-function twilio_rules_action_send_sms_to_number($number, $message, $country) {
+function twilio_rules_action_send_sms_to_number($country, $number, $message) {
   twilio_send($number, $message, $country);
 }
 
