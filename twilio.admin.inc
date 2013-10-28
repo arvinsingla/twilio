@@ -13,7 +13,7 @@ function twilio_admin_form($form, &$form_state) {
   if (module_exists('libraries') && function_exists('libraries_detect')) {
     $library = libraries_detect(TWILIO_LIBRARY);
     if (!$library['installed']) {
-      $twilio_readme_link = l('README.txt', 'http://drupalcode.org/project/twilio.git/blob/refs/heads/7.x-1.x:/README.txt' );
+      $twilio_readme_link = l(t('README.txt'), 'http://drupalcode.org/project/twilio.git/blob/refs/heads/7.x-1.x:/README.txt');
       $twilio_error_text = t('The Twilo library was not detected or installed correctly. Please review the installation instructions provided in the !link file', array('!link' => $twilio_readme_link));
       drupal_set_message($twilio_error_text, 'error');
     }
@@ -39,7 +39,6 @@ function twilio_admin_form($form, &$form_state) {
     '#title' => t('Twilio Phone Number'),
     '#default_value' => variable_get('twilio_number'),
     '#description' => t('Enter your Twilio phone number'),
-    '#element_validate' => array('twilio_admin_phone_validate'),
   );
   $form['twilio_long_sms'] = array(
     '#type' => 'radios',
@@ -56,42 +55,44 @@ function twilio_admin_form($form, &$form_state) {
     '#default_value' => variable_get('twilio_registration_form', 0),
   );
 
-  // Expose the callback URLs to the user for convenience
+  $form['twilio_country_codes_container'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Country codes'),
+    '#description' => t('Select the country codes you would like to accept, If none are selected all will be available'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  $form['twilio_country_codes_container']['twilio_country_codes'] = array(
+    '#type' => 'checkboxes',
+    '#options' => twilio_country_codes(TRUE),
+    '#default_value' => variable_get('twilio_country_codes', 0),
+  );
+
+  // Expose the callback URLs to the user for convenience.
   $form['twilio_callback_container'] = array(
-    '#type' => 'fieldset', 
+    '#type' => 'fieldset',
     '#title' => t('Module callbacks'),
     '#description' => t('Enter these callback addresses into your Twilio phone number configuration on the Twilio dashboard to allow your site to respond to incoming voice calls and SMS messages.'),
   );
-  
-  // Initialize URL variables
+
+  // Initialize URL variables.
   $voice_callback = $GLOBALS['base_url'] . '/twilio/voice';
   $sms_callback = $GLOBALS['base_url'] . '/twilio/sms';
-  
+
   $form['twilio_callback_container']['voice_callback'] = array(
     '#type' => 'item',
     '#title' => t('Voice request URL'),
     '#markup' => '<p>' . $voice_callback . '</p>',
   );
-  
+
   $form['twilio_callback_container']['sms_callback'] = array(
     '#type' => 'item',
     '#title' => t('SMS request URL'),
     '#markup' => '<p>' . $sms_callback . '</p>',
   );
-  
-  return system_settings_form($form);
-}
 
-/**
- * Element validator for the phone number field.
- */
-function twilio_admin_phone_validate($element, &$form_state, $form) {
-  if ($number = twilio_validate_number($element['#value'], FALSE)) {
-    $form_state['values']['twilio_number'] = $number;
-  }
-  else {
-    form_error($element, t('You must enter a valid 10 digit phone number'));
-  }
+  return system_settings_form($form);
 }
 
 /**
@@ -107,11 +108,11 @@ function twilio_admin_test_form($form, &$form_state) {
     '#type' => 'textfield',
     '#required' => TRUE,
     '#title' => 'Phone Number',
-    '#description' => t('include all numbers except the country code')
+    '#description' => t('include all numbers except the country code'),
   );
   $form['message'] = array(
     '#type' => 'textarea',
-    '#required'=> TRUE,
+    '#required' => TRUE,
     '#title' => 'Message',
   );
   $form['submit'] = array(
@@ -127,7 +128,7 @@ function twilio_admin_test_form($form, &$form_state) {
 function twilio_admin_test_form_validate($form, &$form_state) {
   $value = $form_state['values']['number'];
   if (!is_numeric($value) || intval($value) != $value) {
-    form_set_error('number', t('You must enter a valid phone number'));
+    form_set_error('number', t('You must enter a phone number'));
   }
 }
 
@@ -144,7 +145,7 @@ function twilio_admin_test_form_submit($form, &$form_state) {
  */
 function twilio_twiml_manager_form($form, &$form_state, $twiml_id = NULL) {
 
-  // Load the TwiML data if it exists
+  // Load the TwiML data if it exists.
   $twiml = twilio_twiml_load($twiml_id);
   $twiml_list = twilio_twiml_load_multiple();
 
@@ -184,14 +185,14 @@ function twilio_twiml_manager_form($form, &$form_state, $twiml_id = NULL) {
     '#description' => t('The description of this TwiML.'),
   );
 
-  // If the PHP module is enabled show a different description
+  // If the PHP module is enabled show a different description.
   if (module_exists('php')) {
     $description = t('The TwiML. You may use PHP code. You should include &lt;?php ?&gt; tags.');
   }
   else {
-    $description= t('The TwiML. If you wish to use PHP code you must enable the !phpmodule', array('!phpmodule' => l('PHP filter module', 'admin/modules')));
+    $description = t('The TwiML. If you wish to use PHP code you must enable the !phpmodule', array('!phpmodule' => l(t('PHP filter module'), 'admin/modules')));
   }
-  
+
   $form['data'] = array(
     '#title' => t('TwiML'),
     '#type' => 'textarea',
@@ -219,7 +220,7 @@ function twilio_twiml_manager_form_submit($form, &$form_state) {
     twilio_twiml_create($values);
   }
   // Over write entry in DB.
-  else if ($form_state['triggering_element']['#name'] == 'update') {
+  elseif ($form_state['triggering_element']['#name'] == 'update') {
     twilio_twiml_update($values);
   }
 }

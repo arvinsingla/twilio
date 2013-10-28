@@ -66,7 +66,7 @@ function twilio_rules_condition_info() {
       'arguments' => array(
         'number' => array(
           'type' => 'text',
-          'label' => t('Phone Number')
+          'label' => t('Phone Number'),
         ),
       ),
       'group' => t('Twilio'),
@@ -76,7 +76,7 @@ function twilio_rules_condition_info() {
 }
 
 /**
- * Implements hook_rules_action_info()
+ * Implements hook_rules_action_info().
  */
 function twilio_rules_action_info() {
   $defaults = array(
@@ -156,10 +156,10 @@ function twilio_rules_condition_number_belongs_to_user($number) {
 }
 
 /**
- * Action: Output TwiML
+ * Action: Output TwiML.
  */
 function twilio_rules_twiml_output($twiml_id) {
   $twiml = twilio_twiml_load($twiml_id);
   echo $twiml['data'];
-  return;
+  exit();
 }

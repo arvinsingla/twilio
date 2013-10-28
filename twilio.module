@@ -114,8 +114,8 @@ function twilio_user_categories() {
 function twilio_permission() {
   return array(
     'edit own sms number' => array(
-      'title' => t('Edit own SMS number'),
-      'description' => t('TODO Add a description for \'edit own sms number\''),
+      'title' => t('Edit own number'),
+      'description' => t('Edit your own phone number'),
     ),
   );
 }
@@ -159,54 +159,28 @@ function twilio_libraries_info() {
  *   The country code for the phone number
  */
 function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE) {
-  
-  switch(variable_get('twilio_long_sms', TWILIO_SMS_LONG_MULTIPLE)) {
+  switch (variable_get('twilio_long_sms', TWILIO_SMS_LONG_MULTIPLE)) {
     case TWILIO_SMS_LONG_TRUNCATE:
-      // Truncate the message to 160 characters
-      $message_truncated = substr($message,0,160);
-      twilio_command('sendmsg', array('country' => $country, 'number' => $number, 'message' => $message_truncated));
+      // Truncate the message to 160 characters.
+      $message_truncated = substr($message, 0, 160);
+      twilio_command('sendmsg', array(
+        'country' => $country,
+        'number' => $number,
+        'message' => $message_truncated,
+      ));
       break;
+
     case TWILIO_SMS_LONG_MULTIPLE:
-      // Break up the message into 160 character chunks and send multiple
+      // Break up the message into 160 character chunks and send multiple.
       $iterator = ceil(strlen($message) / 160);
       for ($i = 0; $i < $iterator; $i++) {
-        twilio_command('sendmsg', array('country' => $country, 'number' => $number, 'message' => substr($message, $i * 160, 160)));
+        twilio_command('sendmsg', array(
+          'country' => $country,
+          'number' => $number,
+          'message' => substr($message, $i * 160, 160),
+        ));
       }
       break;
-  }
-}
-
-/**
- * Validate 10 digit phone numbers. 
- *
- * @param string $number
- *   A potential phone number
- *
- * @param boolean $country_code
- *   A flag indicating if the country code should be added.
- *
- * @result
- *   A string with a properly formatted number, FALSE otherwise
- */
-function twilio_validate_number($number, $country_code = TRUE) {
-  // Phone number regex validation - http://www.virtuosimedia.com/dev/php/37-tested-php-perl-and-javascript-regular-expressions
-  $regex = '/^((([0-9]{1})*[- .(]*([0-9]{3})[- .)]*[0-9]{3}[- .]*[0-9]{4})+)*$/';
-  if (preg_match($regex, $number)) {
-    // Clean up the number.
-    $number = preg_replace("/[^0-9]/", '', $number);
-    $number = trim($number);
-    // Remove any leading zeros.
-    $number = ltrim($number, '0');
-    if ($country_code) {
-      $index = strpos($number, '1');
-      if ($index === FALSE || $index > 0) {
-        $number = '1' . $number;
-      }
-    }
-    return $number;
-  }
-  else {
-    return FALSE;
   }
 }
 
@@ -215,8 +189,6 @@ function twilio_validate_number($number, $country_code = TRUE) {
  */
 function twilio_command($command = 'auth', $data = array(), $config = NULL, $account = '') {
 
-  $result = array();
-
   // Try to load the library and check if that worked.
   if (($library = libraries_load(TWILIO_LIBRARY)) && !empty($library['loaded'])) {
 
@@ -224,75 +196,62 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
     $account_sid = variable_get('twilio_account');
     $auth_token = variable_get('twilio_token');
 
-    // Twilio REST API version
-    $ApiVersion = isset($config['sms_twilio_api']) && $config['sms_twilio_api'] ? $config['sms_twilio_api'] : TWILIO_API_VERSION;
+    // Twilio REST API version.
+    $api_version = !empty($config['sms_twilio_api']) ? $config['sms_twilio_api'] : TWILIO_API_VERSION;
 
-      // Instantiate a new Twilio Rest Client
-    switch($ApiVersion) {
+    switch ($api_version) {
       case '2010-04-01':
-      // Instantiate a new Twilio Rest Client.
-      $client = new Services_Twilio($account_sid, $auth_token);
+        // Instantiate a new Twilio Rest Client.
+        $client = new Services_Twilio($account_sid, $auth_token);
 
         switch ($command) {
           case 'sendmsg':
-            $response  = $client->account->sms_messages->create(
-              variable_get('twilio_number'),
-              '+' . $data['country'] . $data['number'],
-              $data['message']
-            );
+            try {
+              $response  = $client->account->sms_messages->create(
+                variable_get('twilio_number'),
+                '+' . $data['country'] . $data['number'],
+                $data['message']
+              );
+            }
+            catch (Exception $e){
+              watchdog('Twilio', $e, array(), WATCHDOG_ERROR);
+            }
+            if ($response->status == 'failed') {
+              watchdog('Twilio', 'An error occured during the HTTP request');
+            }
             break;
         }
         break;
+
       case '2008-08-01':
-        // Include the PHP TwilioRest library
+        // Instantiate a new Twilio Rest Client.
         $client = new TwilioRestClient($account_sid, $auth_token);
 
         switch ($command) {
           case 'sendmsg':
-            $response = $client->request("/$ApiVersion/Accounts/$AccountSid/SMS/Messages",
-              "POST", array(
-              "To" => '+' . $data['country'] . $data['number'],
-              "From" => variable_get('twilio_number'),
-              "Body" => $data['message'],
-            ));
+            try {
+              $response = $client->request("/$api_version/Accounts/$account_sid/SMS/Messages",
+                "POST", array(
+                  "To" => '+' . $data['country'] . $data['number'],
+                  "From" => variable_get('twilio_number'),
+                  "Body" => $data['message'],
+                )
+              );
+            }
+            catch (Exception $e) {
+              watchdog('Twilio', $e, array(), WATCHDOG_ERROR);
+            }
+            if ($response->IsError) {
+              watchdog('Twilio', 'An error occured during the HTTP request: @error', array('@error' => $response->ErrorMessage));
+            }
             break;
         }
         break;
-      default:
-        $result = array(
-          'status' => FALSE,
-          'message' => t('Invalid Twilio API: @api', array('@api', $ApiVersion)),
-        );
-        return $result;
-    }
-
-    watchdog('Twilio', print_r($response, TRUE));
-    // Check for HTTP errors.
-    if (($ApiVersion == '2008-08-01') and ($response->IsError)) {
-      $result = array(
-        'status' => FALSE,
-        'message' => t('An error occured during the HTTP request: @error', array('@error' => $response->ErrorMessage))
-      );
-    } else if (($ApiVersion == '2010-04-01') and ($response->status == 'failed')) {
-      $result = array(
-        'status' => FALSE,
-        'message' => t('An error occured during the HTTP request'),
-      );
-    }
-    else {
-      $result = array(
-        'status' => TRUE,
-        'data' => t('Message sent to @number', array('@number' => $data['number']))
-      );
     }
   }
   else {
-    $result = array(
-      'status' => FALSE,
-      'data' => t('The twilio library was not loaded properly')
-    );
+    watchdog('Twilio', 'The twilio library was not loaded properly');
   }
-  return $result;
 }
 
 /**
@@ -322,7 +281,7 @@ function twilio_receive_message() {
  *   The content of the text message.
  */
 function twilio_sms_incoming($number, $message, $options = array()) {
-  // Invoke a hook for the incoming message so other modules can do things with it.
+  // Invoke a hook for the incoming message so other modules can do things.
   module_invoke_all('twilio_sms_incoming', $number, $message, $options);
   if (module_exists('rules')) {
     if ($account = twilio_verify_number($number, TRUE)) {
@@ -337,10 +296,9 @@ function twilio_sms_incoming($number, $message, $options = array()) {
  *
  * @param string $number
  *   The sender's mobile number.
- *
  */
 function twilio_voice_incoming($number, $options = array()) {
-  // Invoke a hook for the incoming message so other modules can do things with it.
+  // Invoke a hook for the incoming message so other modules can do things.
   module_invoke_all('twilio_voice_incoming', $number, $options);
   if (module_exists('rules')) {
     rules_invoke_event('twilio_voice_incoming', $number);
@@ -366,12 +324,14 @@ function twilio_receive_voice() {
  * Implements hook_user_load().
  */
 function twilio_user_load($users) {
+  // Load data from the {twilio_user} table for the user account.
   $result = db_select('twilio_user', 'u')
     ->fields('u', array('uid', 'country', 'number', 'status', 'code'))
     ->condition('uid', array_keys($users), 'IN')
     ->execute();
   foreach ($result as $record) {
     if (!empty($record->uid)) {
+      // Assign the twilio data to the user object.
       $users[$record->uid]->twilio_user = (array) $record;
     }
   }
@@ -422,7 +382,7 @@ function twilio_user_delete($account) {
 }
 
 /**
- * Saves mobile number data to the twilio_user table in the database.
+ * Saves mobile number data to the {twilio_user} table in the database.
  */
 function twilio_user_save(&$edit, $account, $category) {
   if (($category == 'twilio') && isset($edit['twilio'])) {
@@ -449,22 +409,22 @@ function twilio_user_save(&$edit, $account, $category) {
 function twilio_user_login(&$edit, $account) {
   // If the users mobile number is in the verification state let them know they
   // need to enter their verification code and link to their settings page.
-  if (user_access('edit own sms number') && !empty($account->twilio_user) && $account->twilio_user['status'] == 1) {
+  if (twilio_edit_access($account) && !empty($account->twilio_user) && $account->twilio_user['status'] == 1) {
     $account_link = l(t("account settings page"), 'user/' . $account->uid . '/edit/twilio');
     drupal_set_message(t("You must confirm your phone number by entering the verification code sent to you via SMS. Go to the !link to enter your verification code.", array('!link' => $account_link)), 'warning');
   }
 }
 
 /**
- * Determines if a number is associated with a user account
+ * Determines if a number is associated with a user account.
  *
- * @param $number
+ * @param int $number
  *   The phone number we are searching for
- * @param $return_user
+ * @param bool $return_user
  *   Boolean flag to return a user object if TRUE
  *
  * @results bool
- *   TRUE or FALSE based on query, User object if $number belongs to user and $return_user is TRUE and
+ *   TRUE or FALSE based on query
  */
 function twilio_verify_number($number, $return_user = FALSE) {
   $result = db_select('twilio_user', 't')
@@ -563,16 +523,17 @@ function twilio_user_send_confirmation($account, $number, $country) {
 /**
  * Load TwiML data from the DB.
  *
- * @param $twiml_id
- *   String - The TwiML machine name to load.
+ * @param String $twiml_id
+ *   The TwiML machine name to load.
  *
- * @return The TwiML data, or FALSE if none.
+ * @return array
+ *   The TwiML data, or FALSE if none.
  */
 function twilio_twiml_load($twiml_id = FALSE) {
   if (!empty($twiml_id)) {
     $result = db_select('twilio_twiml', 't')
       ->fields('t')
-      ->condition('twiml_id', $twiml_id,'=')
+      ->condition('twiml_id', $twiml_id, '=')
       ->execute()
       ->fetchAssoc();
     return $result;
@@ -583,10 +544,11 @@ function twilio_twiml_load($twiml_id = FALSE) {
 /**
  * Load TwiML data from the DB.
  *
- * @param $twiml_ids
- *   Array- An array of TwiML machine name to load.
+ * @param array $twiml_ids
+ *   An array of TwiML machine name to load.
  *
- * @return Array of TwiML documents or FALSE
+ * @return array
+ *   An array of TwiML documents or FALSE
  */
 function twilio_twiml_load_multiple($twiml_ids = FALSE) {
   if (!empty($twiml_ids) && is_array($twiml_ids)) {
@@ -608,7 +570,7 @@ function twilio_twiml_load_multiple($twiml_ids = FALSE) {
 }
 
 /**
- * Display TwiML to the screen
+ * Display TwiML to the screen.
  */
 function twilio_twiml_display($twiml) {
   if (module_exists('php')) {
@@ -622,10 +584,11 @@ function twilio_twiml_display($twiml) {
 /**
  * Create a TwiML entry in the DB.
  *
- * @param $values
- *   Array - A keyed array containing all the information we need.
+ * @param array $values
+ *   A keyed array containing all the information we need.
  *
- * @return TRUE or FALSE
+ * @return bool
+ *   TRUE or FALSE
  */
 function twilio_twiml_create($values = FALSE) {
   // If no values, return FALSE.
@@ -647,10 +610,11 @@ function twilio_twiml_create($values = FALSE) {
 /**
  * Update a TwiML entry in the DB.
  *
- * @param $values
- *   Array - A keyed array containing all the information we need.
+ * @param array $values
+ *   A keyed array containing all the information we need.
  *
- * @return TRUE or FALSE
+ * @return bool
+ *   TRUE or FALSE
  */
 function twilio_twiml_update($values = FALSE) {
   // If no values, return FALSE.
@@ -659,7 +623,7 @@ function twilio_twiml_update($values = FALSE) {
   }
 
   // Create the record.
-  return db_update('twilio_twiml') // Table name no longer needs {}
+  return db_update('twilio_twiml')
     ->fields(array(
       'name' => $values['name'],
       'description' => $values['description'],
@@ -670,7 +634,7 @@ function twilio_twiml_update($values = FALSE) {
 }
 
 /**
- * Implements hook_theme
+ * Implements hook_theme().
  */
 function twilio_theme($existing, $type, $theme, $path) {
   return array(
@@ -683,7 +647,7 @@ function twilio_theme($existing, $type, $theme, $path) {
 }
 
 /**
- * Theme function for TwiML lists
+ * Theme function for TwiML lists.
  */
 function theme_twilio_twiml_list($variables) {
 
@@ -693,10 +657,15 @@ function theme_twilio_twiml_list($variables) {
 
   $rows = array();
   foreach ($variables['twiml_list'] as $row) {
-    $edit = l('Edit', TWILIO_ADMIN_PATH . '/twiml/' . $row->twiml_id);
-    $delete = l('Delete', TWILIO_ADMIN_PATH . '/twiml_delete/' . $row->twiml_id);
+    $edit = l(t('Edit'), TWILIO_ADMIN_PATH . '/twiml/' . $row->twiml_id);
+    $delete = l(t('Delete'), TWILIO_ADMIN_PATH . '/twiml_delete/' . $row->twiml_id);
     $url = $GLOBALS['base_url'] . '/twilio/twiml/' . $row->twiml_id;
-    $rows[] = array($row->name, $row->description, $url, $edit . ' | ' . $delete);
+    $rows[] = array(
+      $row->name,
+      $row->description,
+      $url,
+      $edit . ' | ' . $delete,
+    );
   }
 
   $variables = array(
@@ -711,10 +680,11 @@ function theme_twilio_twiml_list($variables) {
 /**
  * Update a TwiML entry in the DB.
  *
- * @param $twiml_id
+ * @param int $twiml_id
  *   String - The machine name of the TwiML to delete.
  *
- * @return TRUE or FALSE
+ * @return bool
+ *   TRUE or FALSE
  */
 function twilio_twiml_delete($twiml_id) {
   return db_delete('twilio_twiml')
@@ -734,12 +704,16 @@ function twilio_twiml_options_list() {
 }
 
 /**
- * Returns an array of E.164 international country calling codes
+ * Returns an array of E.164 international country calling codes.
  *
- * @return array Associative array of country calling codes and country names.
+ * @param bool $all
+ *   Boolean - If all possible options should be returned
+ *
+ * @return array
+ *   Associative array of country calling codes and country names.
  */
-function twilio_country_codes() {
-  return array(
+function twilio_country_codes($all = FALSE) {
+  $codes = array(
     1 => "USA / Canada / Dominican Rep. / Puerto Rico (1)",
     93 => "Afghanistan (93)",
     355 => "Albania (355)",
@@ -950,4 +924,14 @@ function twilio_country_codes() {
     255 => "Zanzibar (255)",
     263 => "Zimbabwe (263)",
   );
+  if ($all) {
+    return $codes;
+  }
+  $codes_to_return = array_filter(variable_get('twilio_country_codes', array()));
+  if (empty($codes_to_return)) {
+    return $codes;
+  }
+  else {
+    return array_intersect_key($codes, $codes_to_return);
+  }
 }

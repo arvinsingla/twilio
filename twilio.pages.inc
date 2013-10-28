@@ -5,7 +5,7 @@
  */
 
 /**
- * Menu callback; provides the forms for adding and confirming a user's mobile number.
+ * Menu callback for adding and confirming a user's mobile number.
  */
 function twilio_user_settings($account) {
   return drupal_get_form('twilio_user_settings_form', $account);
@@ -51,7 +51,7 @@ function twilio_user_settings_form($form, &$form_state, $account) {
         'callback' => 'twilio_user_settings_ajax_callback',
         'wrapper' => 'twilio-user-form',
         'method' => 'replace',
-      )
+      ),
     );
   }
   elseif ($account->twilio_user['status'] == 1) {
@@ -76,7 +76,7 @@ function twilio_user_settings_form($form, &$form_state, $account) {
         'callback' => 'twilio_user_settings_ajax_callback',
         'wrapper' => 'twilio-user-form',
         'method' => 'replace',
-      )
+      ),
     );
     $form['reset'] = array(
       '#type' => 'submit',
@@ -87,7 +87,7 @@ function twilio_user_settings_form($form, &$form_state, $account) {
         'callback' => 'twilio_user_settings_ajax_callback',
         'wrapper' => 'twilio-user-form',
         'method' => 'replace',
-      )
+      ),
     );
   }
   elseif ($account->twilio_user['status'] == 2) {
@@ -100,14 +100,13 @@ function twilio_user_settings_form($form, &$form_state, $account) {
     $form['reset'] = array(
       '#type' => 'submit',
       '#value' => t('Delete & start over'),
-      //'#access' => user_access('edit own sms number'),
       '#validate' => array('twilio_user_settings_reset_form_validate'),
       '#submit' => array('twilio_user_settings_reset_form_submit'),
       '#ajax' => array(
         'callback' => 'twilio_user_settings_ajax_callback',
         'wrapper' => 'twilio-user-form',
         'method' => 'replace',
-      )
+      ),
     );
   }
   return $form;

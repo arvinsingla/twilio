@@ -24,6 +24,7 @@ function twilio_uninstall() {
   variable_del('twilio_path');
   variable_del('twilio_registration_form');
   variable_del('twilio_token');
+  variable_del('twilio_area_codes');
 }
 
 /**
