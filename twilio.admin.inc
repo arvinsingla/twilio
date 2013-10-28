@@ -66,7 +66,7 @@ function twilio_admin_form($form, &$form_state) {
   $form['twilio_country_codes_container']['twilio_country_codes'] = array(
     '#type' => 'checkboxes',
     '#options' => twilio_country_codes(TRUE),
-    '#default_value' => variable_get('twilio_country_codes', 0),
+    '#default_value' => variable_get('twilio_country_codes', array()),
   );
 
   // Expose the callback URLs to the user for convenience.

@@ -192,9 +192,15 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
   // Try to load the library and check if that worked.
   if (($library = libraries_load(TWILIO_LIBRARY)) && !empty($library['loaded'])) {
 
-    // Set our AccountSid and AuthToken.
-    $account_sid = variable_get('twilio_account');
-    $auth_token = variable_get('twilio_token');
+    // Set our account_sid, auth_token, and number.
+    $account_sid = variable_get('twilio_account', FALSE);
+    $auth_token = variable_get('twilio_token', FALSE);
+    $number = variable_get('twilio_number', FALSE);
+
+    // If we don't have one of our twilio variables don't bother trying to send.
+    if (!$account_sid || !$auth_token || !$number) {
+      return;
+    }
 
     // Twilio REST API version.
     $api_version = !empty($config['sms_twilio_api']) ? $config['sms_twilio_api'] : TWILIO_API_VERSION;
@@ -208,7 +214,7 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
           case 'sendmsg':
             try {
               $response  = $client->account->sms_messages->create(
-                variable_get('twilio_number'),
+                $number,
                 '+' . $data['country'] . $data['number'],
                 $data['message']
               );
@@ -233,7 +239,7 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
               $response = $client->request("/$api_version/Accounts/$account_sid/SMS/Messages",
                 "POST", array(
                   "To" => '+' . $data['country'] . $data['number'],
-                  "From" => variable_get('twilio_number'),
+                  "From" => $number,
                   "Body" => $data['message'],
                 )
               );
