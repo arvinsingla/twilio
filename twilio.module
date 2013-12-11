@@ -479,7 +479,7 @@ function twilio_form_user_register_form_alter(&$form, &$form_state, $form_id) {
  */
 function twilio_register_validate($form, &$form_state) {
   $value = $form_state['values']['number'];
-  if (!is_numeric($value) || intval($value) != $value) {
+  if (!is_numeric($value)) {
     form_set_error('number', t('You must enter a valid phone number'));
   }
   elseif (twilio_verify_number($value)) {
