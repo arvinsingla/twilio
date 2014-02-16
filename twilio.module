@@ -186,8 +186,20 @@ function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE) 
 
 /**
  * Executes a command using the Twilio REST API.
+ *
+ * @param string $command
+ *   The command to execute.
+ *   
+ * @param array $data
+ *   An array of data used by some twilio commands.
+ *   
+ * @param array $config
+ *   Additional configuration parameters used by some twilio commands.
+ *   
+ * @return bool
+ *   TRUE if the command executed correctly, FALSE otherwise.
  */
-function twilio_command($command = 'auth', $data = array(), $config = NULL, $account = '') {
+function twilio_command($command = '', $data = array(), $config = array()) {
 
   // Try to load the library and check if that worked.
   if (($library = libraries_load(TWILIO_LIBRARY)) && !empty($library['loaded'])) {
@@ -197,9 +209,9 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
     $auth_token = variable_get('twilio_token', FALSE);
     $number = variable_get('twilio_number', FALSE);
 
-    // If we don't have one of our twilio variables don't bother trying to send.
+    // If we don't have one of our twilio variables don't bother doing anything.
     if (!$account_sid || !$auth_token || !$number) {
-      return;
+      return FALSE;
     }
 
     // Twilio REST API version.
@@ -207,17 +219,17 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
 
     switch ($api_version) {
       case '2010-04-01':
-        // Instantiate a new Twilio Rest Client.
-        $client = new Services_Twilio($account_sid, $auth_token);
-
         switch ($command) {
           case 'sendmsg':
+            // Instantiate a new Twilio Rest Client.
+            $client = new Services_Twilio($account_sid, $auth_token);
             try {
               $response  = $client->account->sms_messages->create(
                 $number,
                 '+' . $data['country'] . $data['number'],
                 $data['message']
               );
+              return TRUE;
             }
             catch (Exception $e){
               watchdog('Twilio', $e, array(), WATCHDOG_ERROR);
@@ -226,15 +238,29 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
               watchdog('Twilio', 'An error occured during the HTTP request');
             }
             break;
+
+          case 'validate':
+            $validator = new Services_Twilio_RequestValidator($auth_token);
+            $url = $GLOBALS['base_url'] . '/twilio/sms';
+            $signature = $_SERVER["HTTP_X_TWILIO_SIGNATURE"];
+            $post_vars = $_POST;
+            if ($validator->validate($signature, $url, $post_vars)) {
+              watchdog('Twilio', 'Incoming SMS message validated');
+              return TRUE;
+            }
+            else {
+              watchdog('Twilio', 'Incoming SMS could not be validated');
+            }
+            break;
+
         }
         break;
 
       case '2008-08-01':
-        // Instantiate a new Twilio Rest Client.
-        $client = new TwilioRestClient($account_sid, $auth_token);
-
         switch ($command) {
           case 'sendmsg':
+            // Instantiate a new Twilio Rest Client.
+            $client = new TwilioRestClient($account_sid, $auth_token);
             try {
               $response = $client->request("/$api_version/Accounts/$account_sid/SMS/Messages",
                 "POST", array(
@@ -243,6 +269,7 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
                   "Body" => $data['message'],
                 )
               );
+              return TRUE;
             }
             catch (Exception $e) {
               watchdog('Twilio', $e, array(), WATCHDOG_ERROR);
@@ -251,6 +278,7 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
               watchdog('Twilio', 'An error occured during the HTTP request: @error', array('@error' => $response->ErrorMessage));
             }
             break;
+
         }
         break;
     }
@@ -258,13 +286,14 @@ function twilio_command($command = 'auth', $data = array(), $config = NULL, $acc
   else {
     watchdog('Twilio', 'The twilio library was not loaded properly');
   }
+  return FALSE;
 }
 
 /**
  * Callback for incoming messages.
  */
 function twilio_receive_message() {
-  if (!empty($_REQUEST['From']) && !empty($_REQUEST['Body'])) {
+  if (!empty($_REQUEST['From']) && !empty($_REQUEST['Body']) && twilio_command('validate')) {
     $number = str_replace('+1', '', $_REQUEST['From']);
     $message = check_plain(htmlspecialchars_decode($_REQUEST['Body'], ENT_QUOTES));
     $options = array();
