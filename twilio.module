@@ -294,11 +294,25 @@ function twilio_command($command = '', $data = array(), $config = array()) {
  */
 function twilio_receive_message() {
   if (!empty($_REQUEST['From']) && !empty($_REQUEST['Body']) && twilio_command('validate')) {
+    // @todo Strip appropriate header number for geographic location.
     $number = str_replace('+1', '', $_REQUEST['From']);
     $message = check_plain(htmlspecialchars_decode($_REQUEST['Body'], ENT_QUOTES));
+    // Do we have any media entries?
+    if (!empty($_REQUEST['NumMedia'])) {
+      $media = array();
+      // Iterate through and populate the media array with urls.
+      for ($i = 0; $i < $_REQUEST['NumMedia']; $i++) {
+        $media[] = $_REQUEST['MediaUrl' . $i];
+      }
+    }
     $options = array();
+    // Add the receiver to the options array.
     if (!empty($_REQUEST['To'])) {
       $options['receiver'] = $_REQUEST['To'];
+    }
+    // Add media to the options array.
+    if (!empty($media)) {
+      $options['media'] = $media;
     }
     $log_message = 'An SMS message was sent from ' . $number . ' containing the message "' . $message . '"';
     watchdog('Twilio', $log_message);
@@ -322,7 +336,7 @@ function twilio_sms_incoming($number, $message, $options = array()) {
     if ($account = twilio_verify_number($number, TRUE)) {
       rules_invoke_event('twilio_sms_incoming_from_user', $number, $message, $account);
     }
-    rules_invoke_event('twilio_sms_incoming', $number, $message);
+    rules_invoke_event('twilio_sms_incoming', $number, $message, $options);
   }
 }
 
