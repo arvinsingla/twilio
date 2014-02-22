@@ -699,3 +699,13 @@ function twilio_country_codes($all = FALSE) {
     return array_intersect_key($codes, $codes_to_return);
   }
 }
+
+/**
+ * Implements hook_views_api().
+ */
+function twilio_views_api() {
+  return array(
+    'api' => 3,
+    'path' => drupal_get_path('module', 'twilio'),
+  );
+}
