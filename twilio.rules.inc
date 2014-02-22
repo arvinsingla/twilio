@@ -16,40 +16,18 @@ function twilio_rules_event_info() {
     'twilio_sms_incoming' => $defaults + array(
       'label' => t('Drupal receives an SMS'),
       'variables' => array(
-        'number' => array(
-          'type' => 'text',
-          'label' => t('Number'),
-        ),
-        'message' => array(
-          'type' => 'text',
-          'label' => t('Message'),
+        'sms' => array(
+          'type' => 'sms',
+          'label' => t('Twilio incoming SMS'),
         ),
       ),
     ),
     'twilio_voice_incoming' => $defaults + array(
       'label' => t('Drupal receives a voice call'),
       'variables' => array(
-        'number' => array(
-          'type' => 'text',
-          'label' => t('Number'),
-        ),
-      ),
-    ),
-    'twilio_sms_incoming_from_user' => $defaults + array(
-      'label' => t('Drupal receives an SMS from a site user'),
-      'variables' => array(
-        'number' => array(
-          'type' => 'text',
-          'label' => t('Number'),
-        ),
-        'message' => array(
-          'type' => 'text',
-          'label' => t('Message'),
-        ),
-        'account' => array(
-          'type' => 'user',
-          'label' => t('User'),
-          'save' => TRUE,
+        'voice' => array(
+          'type' => 'voice',
+          'label' => t('Twilio incoming Voice'),
         ),
       ),
     ),
@@ -96,17 +74,9 @@ function twilio_rules_action_info() {
         'type' => 'text',
         'label' => t('Message'),
       ),
-    ),
-  );
-  $actions['twilio_twiml_output'] = $defaults + array(
-    'label' => t('Output TwiML'),
-    'base' => 'twilio_rules_twiml_output',
-    'parameter' => array(
-      'twiml_id' => array(
+      'media' => array(
         'type' => 'text',
-        'label' => t('TwiML'),
-        'options list' => 'twilio_twiml_options_list',
-        'restriction' => 'input',
+        'lable' => t('Media path'),
       ),
     ),
   );
@@ -126,6 +96,10 @@ function twilio_rules_action_info() {
       'message' => array(
         'type' => 'text',
         'label' => t('Message'),
+      ),
+      'media' => array(
+        'type' => 'text',
+        'lable' => t('Media path'),
       ),
     ),
   );
@@ -153,13 +127,4 @@ function twilio_rules_action_send_sms_to_number($country, $number, $message) {
  */
 function twilio_rules_condition_number_belongs_to_user($number) {
   return twilio_verify_number($number);
-}
-
-/**
- * Action: Output TwiML.
- */
-function twilio_rules_twiml_output($twiml_id) {
-  $twiml = twilio_twiml_load($twiml_id);
-  echo $twiml['data'];
-  exit();
 }

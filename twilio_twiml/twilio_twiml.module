@@ -1,0 +1,221 @@
+<?php
+
+/**
+ * @file
+ * Twilio TwiML module
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function twilio_twiml_menu() {
+  $items[TWILIO_ADMIN_PATH . '/twiml'] = array(
+    'title' => 'TwiML Manager',
+    'description' => 'Manage TwiML documents.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('twilio_twiml_manager_form'),
+    'access arguments' => array('access administration pages'),
+    'file' => 'twilio_twiml.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => -5,
+  );
+  $items[TWILIO_ADMIN_PATH . '/twiml_delete/%twilio_twiml'] = array(
+    'title' => 'TwiML Delete',
+    'description' => 'Manage TwiML documents.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('twilio_twiml_delete_confirm', 5),
+    'access arguments' => array('access administration pages'),
+    'file' => 'twilio_twiml.admin.inc',
+    'type' => MENU_CALLBACK,
+    'weight' => -5,
+  );
+  $items['twilio/twiml/%twilio_twiml'] = array(
+    'page callback' => 'twilio_twiml_display',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function twilio_twiml_theme($existing, $type, $theme, $path) {
+  return array(
+    'twilio_twiml_list' => array(
+      'variables' => array(
+        'twiml_list' => NULL,
+      ),
+    ),
+  );
+}
+
+/**
+ * Theme function for TwiML lists.
+ */
+function theme_twilio_twiml_list($variables) {
+
+  if (empty($variables['twiml_list'])) {
+    return FALSE;
+  }
+
+  $rows = array();
+  foreach ($variables['twiml_list'] as $row) {
+    $edit = l(t('Edit'), TWILIO_ADMIN_PATH . '/twiml/' . $row->twiml_id);
+    $delete = l(t('Delete'), TWILIO_ADMIN_PATH . '/twiml_delete/' . $row->twiml_id);
+    $url = $GLOBALS['base_url'] . '/twilio/twiml/' . $row->twiml_id;
+    $rows[] = array(
+      $row->name,
+      $row->description,
+      $url,
+      $edit . ' | ' . $delete,
+    );
+  }
+
+  $variables = array(
+    'header' => array('Name', 'Description', 'URL', 'Operations'),
+    'rows' => $rows,
+  );
+
+  return theme('table', $variables);
+}
+
+/**
+ * Update a TwiML entry in the DB.
+ *
+ * @param int $twiml_id
+ *   String - The machine name of the TwiML to delete.
+ *
+ * @return bool
+ *   TRUE or FALSE
+ */
+function twilio_twiml_delete($twiml_id) {
+  return db_delete('twilio_twiml')
+    ->condition('twiml_id', $twiml_id)
+    ->execute();
+}
+
+/**
+ * Generate an options list of all TwiMLs.
+ */
+function twilio_twiml_options_list() {
+  $twimls = array();
+  foreach (array_filter(twilio_twiml_load_multiple()) as $twiml) {
+    $twimls[$twiml->twiml_id] = $twiml->name;
+  }
+  return $twimls;
+}
+
+/**
+ * Load TwiML data from the DB.
+ *
+ * @param String $twiml_id
+ *   The TwiML machine name to load.
+ *
+ * @return array
+ *   The TwiML data, or FALSE if none.
+ */
+function twilio_twiml_load($twiml_id = FALSE) {
+  if (!empty($twiml_id)) {
+    $result = db_select('twilio_twiml', 't')
+      ->fields('t')
+      ->condition('twiml_id', $twiml_id, '=')
+      ->execute()
+      ->fetchAssoc();
+    return $result;
+  }
+  return FALSE;
+}
+
+/**
+ * Load TwiML data from the DB.
+ *
+ * @param array $twiml_ids
+ *   An array of TwiML machine name to load.
+ *
+ * @return array
+ *   An array of TwiML documents or FALSE
+ */
+function twilio_twiml_load_multiple($twiml_ids = FALSE) {
+  if (!empty($twiml_ids) && is_array($twiml_ids)) {
+    $result = db_select('twilio_twiml', 't')
+      ->fields('t')
+      ->condition('twiml_id', $twiml_ids)
+      ->execute()
+      ->fetchAll();
+    return $result;
+  }
+  else {
+    $result = db_select('twilio_twiml', 't')
+      ->fields('t')
+      ->execute()
+      ->fetchAll();
+    return $result;
+  }
+  return FALSE;
+}
+
+/**
+ * Display TwiML to the screen.
+ */
+function twilio_twiml_display($twiml) {
+  if (module_exists('php')) {
+    echo php_eval($twiml['data']);
+  }
+  else {
+    echo $twiml['data'];
+  }
+}
+
+/**
+ * Create a TwiML entry in the DB.
+ *
+ * @param array $values
+ *   A keyed array containing all the information we need.
+ *
+ * @return bool
+ *   TRUE or FALSE
+ */
+function twilio_twiml_create($values = FALSE) {
+  // If no values, return FALSE.
+  if (!$values) {
+    return FALSE;
+  }
+
+  // Create the record.
+  return db_insert('twilio_twiml')
+    ->fields(array(
+      'twiml_id' => $values['twiml_id'],
+      'name' => $values['name'],
+      'description' => $values['description'],
+      'data' => $values['data'],
+    ))
+    ->execute();
+}
+
+/**
+ * Update a TwiML entry in the DB.
+ *
+ * @param array $values
+ *   A keyed array containing all the information we need.
+ *
+ * @return bool
+ *   TRUE or FALSE
+ */
+function twilio_twiml_update($values = FALSE) {
+  // If no values, return FALSE.
+  if (!$values) {
+    return FALSE;
+  }
+
+  // Create the record.
+  return db_update('twilio_twiml')
+    ->fields(array(
+      'name' => $values['name'],
+      'description' => $values['description'],
+      'data' => $values['data'],
+    ))
+    ->condition('twiml_id', $values['twiml_id'], '=')
+    ->execute();
+}

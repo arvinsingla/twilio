@@ -1,0 +1,4 @@
+name = Twilio TwiML
+description = Add TwiML support to the Twilio Module
+core = 7.x
+dependencies[] = twilio

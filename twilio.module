@@ -19,6 +19,11 @@ define('TWILIO_SMS_LONG_TRUNCATE', 1);
 define('TWILIO_DEFAULT_COUNTRY_CODE', 1);
 
 /**
+ * Load module include files.
+ */
+module_load_include('inc', 'twilio', 'twilio.user');
+
+/**
  * Implements hook_menu().
  */
 function twilio_menu() {
@@ -34,26 +39,6 @@ function twilio_menu() {
     'title' => 'Twilio Settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
-  );
-  $items[TWILIO_ADMIN_PATH . '/twiml'] = array(
-    'title' => 'TwiML Manager',
-    'description' => 'Manage TwiML documents.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('twilio_twiml_manager_form'),
-    'access arguments' => array('access administration pages'),
-    'file' => 'twilio.admin.inc',
-    'type' => MENU_LOCAL_TASK,
-    'weight' => -5,
-  );
-  $items[TWILIO_ADMIN_PATH . '/twiml_delete/%twilio_twiml'] = array(
-    'title' => 'TwiML Delete',
-    'description' => 'Manage TwiML documents.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('twilio_twiml_delete_confirm', 5),
-    'access arguments' => array('access administration pages'),
-    'file' => 'twilio.admin.inc',
-    'type' => MENU_CALLBACK,
-    'weight' => -5,
   );
   $items[TWILIO_ADMIN_PATH . '/test'] = array(
     'title' => 'Send Test SMS message',
@@ -75,12 +60,6 @@ function twilio_menu() {
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
-  $items['twilio/twiml/%twilio_twiml'] = array(
-    'page callback' => 'twilio_twiml_display',
-    'page arguments' => array(2),
-    'access callback' => TRUE,
-    'type' => MENU_CALLBACK,
-  );
   return $items;
 }
 
@@ -93,19 +72,6 @@ function twilio_menu_alter(&$callbacks) {
   $callbacks['user/%user_category/edit/twilio']['page arguments'] = array(1);
   $callbacks['user/%user_category/edit/twilio']['file'] = 'twilio.pages.inc';
   $callbacks['user/%user_category/edit/twilio']['access callback'] = array('twilio_edit_access');
-}
-
-/**
- * Implements hook_user_categories().
- */
-function twilio_user_categories() {
-  return array(
-    array(
-      'name' => 'twilio',
-      'title' => t('Mobile SMS'),
-      'weight' => 3,
-    ),
-  );
 }
 
 /**
@@ -333,24 +299,7 @@ function twilio_sms_incoming($number, $message, $options = array()) {
   // Invoke a hook for the incoming message so other modules can do things.
   module_invoke_all('twilio_sms_incoming', $number, $message, $options);
   if (module_exists('rules')) {
-    if ($account = twilio_verify_number($number, TRUE)) {
-      rules_invoke_event('twilio_sms_incoming_from_user', $number, $message, $account);
-    }
     rules_invoke_event('twilio_sms_incoming', $number, $message, $options);
-  }
-}
-
-/**
- * Invokes twilio_voice_incoming hook.
- *
- * @param string $number
- *   The sender's mobile number.
- */
-function twilio_voice_incoming($number, $options = array()) {
-  // Invoke a hook for the incoming message so other modules can do things.
-  module_invoke_all('twilio_voice_incoming', $number, $options);
-  if (module_exists('rules')) {
-    rules_invoke_event('twilio_voice_incoming', $number);
   }
 }
 
@@ -370,19 +319,92 @@ function twilio_receive_voice() {
 }
 
 /**
- * Implements hook_user_load().
+ * Invokes twilio_voice_incoming hook.
+ *
+ * @param string $number
+ *   The sender's mobile number.
  */
-function twilio_user_load($users) {
-  // Load data from the {twilio_user} table for the user account.
-  $result = db_select('twilio_user', 'u')
-    ->fields('u', array('uid', 'country', 'number', 'status', 'code'))
-    ->condition('uid', array_keys($users), 'IN')
-    ->execute();
-  foreach ($result as $record) {
-    if (!empty($record->uid)) {
-      // Assign the twilio data to the user object.
-      $users[$record->uid]->twilio_user = (array) $record;
+function twilio_voice_incoming($number, $options = array()) {
+  // Invoke a hook for the incoming message so other modules can do things.
+  module_invoke_all('twilio_voice_incoming', $number, $options);
+  if (module_exists('rules')) {
+    rules_invoke_event('twilio_voice_incoming', $number);
+  }
+}
+
+/**
+ * Implements hook_token_info().
+ */
+function twilio_token_info() {
+  $info['types']['sms'] = array(
+    'name' => t('SMS'),
+    'description' => t('Tokens related to an SMS message.'),
+  );
+  $info['types']['voice'] = array(
+    'name' => t('Voice call'),
+    'description' => t('Tokens related to a voice call.'),
+  );
+
+  // Tokens for an SMS message.
+  $info['tokens']['sms']['number'] = array(
+    'name' => t("Number"),
+    'description' => t("The phone number of the incoming SMS."),
+  );
+  $info['tokens']['sms']['message'] = array(
+    'name' => t("Message"),
+    'description' => t("The message of the incoming SMS."),
+  );
+  $info['tokens']['sms']['media'] = array(
+    'name' => t("Media"),
+    'description' => t("The media attached to the incoming SMS."),
+  );
+  // Tokens for a voice call.
+  $info['tokens']['voice']['number'] = array(
+    'name' => t("Number"),
+    'description' => t("The phone number of the incoming voice call."),
+  );
+  return $info;
+}
+
+/**
+ * Implements hook_tokens().
+ */
+function twilio_tokens($type, $tokens, array $data = array(), array $options = array()) {
+  // SMS tokens.
+  if ($type == 'sms' && !empty($data['sms'])) {
+    $sms = $data['sms'];
+    $replacements = array();
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'number':
+          $replacements[$original] = $sms['number'];
+          break;
+
+        case 'message':
+          $replacements[$original] = $sms['message'];
+          break;
+
+        case 'media':
+          $replacements[$original] = $sms['media'];
+          break;
+
+      }
     }
+    return $replacements;
+  }
+  // Voice call tokens.
+  if ($type == 'voice' && !empty($data['voice'])) {
+    $voice = $data['voice'];
+    $replacements = array();
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'number':
+          $replacements[$original] = $sms['number'];
+          break;
+
+      }
+    }
+    return $replacements;
   }
 }
 
@@ -405,63 +427,6 @@ function twilio_verify_duplicate_number($number) {
     return TRUE;
   }
   return FALSE;
-}
-
-/**
- * Implements hook_user_insert().
- */
-function twilio_user_insert(&$edit, $account, $category) {
-  twilio_user_save($edit, $account, $category);
-}
-
-/**
- * Implements hook_user_update().
- */
-function twilio_user_update(&$edit, $account, $category) {
-  twilio_user_save($edit, $account, $category);
-}
-
-/**
- * Implements hook_user_delete().
- */
-function twilio_user_delete($account) {
-  db_delete('twilio_user')
-    ->condition('uid', $account->uid)
-    ->execute();
-}
-
-/**
- * Saves mobile number data to the {twilio_user} table in the database.
- */
-function twilio_user_save(&$edit, $account, $category) {
-  if (($category == 'twilio') && isset($edit['twilio'])) {
-    $number = (object) $edit['twilio'];
-    $number->uid = $account->uid;
-
-    $primary_keys = array();
-    if (isset($account->twilio_user['status'])) {
-      if ($account->twilio_user['status'] == TWILIO_USER_PENDING && $edit['twilio']['status'] == TWILIO_USER_CONFIRMED) {
-        $primary_keys = array('uid');
-      }
-    }
-    drupal_write_record('twilio_user', $number, $primary_keys);
-
-    $edit['twilio']['number'] = NULL;
-    $edit['twilio']['status'] = NULL;
-    $edit['twilio']['code'] = NULL;
-  }
-}
-
-/**
- * Implements hook_user_login().
- */
-function twilio_user_login(&$edit, $account) {
-  // If the users mobile number is in the verification state let them know they
-  // need to enter their verification code and link to their settings page.
-  if (twilio_edit_access($account) && !empty($account->twilio_user) && $account->twilio_user['status'] == 1) {
-    $account_link = l(t("account settings page"), 'user/' . $account->uid . '/edit/twilio');
-    drupal_set_message(t("You must confirm your phone number by entering the verification code sent to you via SMS. Go to the !link to enter your verification code.", array('!link' => $account_link)), 'warning');
-  }
 }
 
 /**
@@ -489,267 +454,6 @@ function twilio_verify_number($number, $return_user = FALSE) {
     return TRUE;
   }
   return FALSE;
-}
-
-/**
- * Implements hook_FORMID_form_alter().
- */
-function twilio_form_user_register_form_alter(&$form, &$form_state, $form_id) {
-  if ($twilio_registration_form = variable_get('twilio_registration_form', 0)) {
-    if ($twilio_registration_form == 2) {
-      $required = TRUE;
-    }
-    else {
-      $required = FALSE;
-    }
-    $form['account']['countrycode'] = array(
-      "#type" => 'select',
-      '#options' => twilio_country_codes(),
-      '#title' => t('Country code'),
-    );
-    $form['account']['number'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Phone number'),
-      '#required' => $required,
-    );
-    $form['#validate'][] = 'twilio_register_validate';
-    $form['#submit'][] = 'twilio_register_submit';
-  }
-}
-
-/**
- * Custom validation function for phone numbers during registration.
- */
-function twilio_register_validate($form, &$form_state) {
-  $value = $form_state['values']['number'];
-  if (!is_numeric($value)) {
-    form_set_error('number', t('You must enter a valid phone number'));
-  }
-  elseif (twilio_verify_number($value)) {
-    form_set_error('number', t('This number is already in use and cannot be assigned to more than one account'));
-  }
-}
-
-/**
- * Custom submit handler for phone numbers during registration.
- */
-function twilio_register_submit($form, &$form_state) {
-  $account = user_load($form_state['values']['uid']);
-  twilio_user_send_confirmation($account, $form_state['values']['number'], $form_state['values']['countrycode']);
-}
-
-/**
- * Send confirmation message.
- *
- * @param object $account
- *   The user object of the account to message
- *
- * @param string $number
- *   The phone number to send the message
- *
- * @param string $country
- *   The country code for the number
- *
- * @todo Please document this function.
- * @see http://drupal.org/node/1354
- */
-function twilio_user_send_confirmation($account, $number, $country) {
-  $code = rand(1000, 9999);
-  $data = array(
-    'uid' => $account->uid,
-    'number' => $number,
-    'country' => $country,
-    'status' => TWILIO_USER_PENDING,
-    'code' => $code,
-  );
-
-  $account = user_save($account, array('twilio' => $data), 'twilio');
-  $message = "Confirmation code: $code";
-  twilio_send($number, $message, $country);
-  return $account;
-}
-
-/**
- * Load TwiML data from the DB.
- *
- * @param String $twiml_id
- *   The TwiML machine name to load.
- *
- * @return array
- *   The TwiML data, or FALSE if none.
- */
-function twilio_twiml_load($twiml_id = FALSE) {
-  if (!empty($twiml_id)) {
-    $result = db_select('twilio_twiml', 't')
-      ->fields('t')
-      ->condition('twiml_id', $twiml_id, '=')
-      ->execute()
-      ->fetchAssoc();
-    return $result;
-  }
-  return FALSE;
-}
-
-/**
- * Load TwiML data from the DB.
- *
- * @param array $twiml_ids
- *   An array of TwiML machine name to load.
- *
- * @return array
- *   An array of TwiML documents or FALSE
- */
-function twilio_twiml_load_multiple($twiml_ids = FALSE) {
-  if (!empty($twiml_ids) && is_array($twiml_ids)) {
-    $result = db_select('twilio_twiml', 't')
-      ->fields('t')
-      ->condition('twiml_id', $twiml_ids)
-      ->execute()
-      ->fetchAll();
-    return $result;
-  }
-  else {
-    $result = db_select('twilio_twiml', 't')
-      ->fields('t')
-      ->execute()
-      ->fetchAll();
-    return $result;
-  }
-  return FALSE;
-}
-
-/**
- * Display TwiML to the screen.
- */
-function twilio_twiml_display($twiml) {
-  if (module_exists('php')) {
-    echo php_eval($twiml['data']);
-  }
-  else {
-    echo $twiml['data'];
-  }
-}
-
-/**
- * Create a TwiML entry in the DB.
- *
- * @param array $values
- *   A keyed array containing all the information we need.
- *
- * @return bool
- *   TRUE or FALSE
- */
-function twilio_twiml_create($values = FALSE) {
-  // If no values, return FALSE.
-  if (!$values) {
-    return FALSE;
-  }
-
-  // Create the record.
-  return db_insert('twilio_twiml')
-    ->fields(array(
-      'twiml_id' => $values['twiml_id'],
-      'name' => $values['name'],
-      'description' => $values['description'],
-      'data' => $values['data'],
-    ))
-    ->execute();
-}
-
-/**
- * Update a TwiML entry in the DB.
- *
- * @param array $values
- *   A keyed array containing all the information we need.
- *
- * @return bool
- *   TRUE or FALSE
- */
-function twilio_twiml_update($values = FALSE) {
-  // If no values, return FALSE.
-  if (!$values) {
-    return FALSE;
-  }
-
-  // Create the record.
-  return db_update('twilio_twiml')
-    ->fields(array(
-      'name' => $values['name'],
-      'description' => $values['description'],
-      'data' => $values['data'],
-    ))
-    ->condition('twiml_id', $values['twiml_id'], '=')
-    ->execute();
-}
-
-/**
- * Implements hook_theme().
- */
-function twilio_theme($existing, $type, $theme, $path) {
-  return array(
-    'twilio_twiml_list' => array(
-      'variables' => array(
-        'twiml_list' => NULL,
-      ),
-    ),
-  );
-}
-
-/**
- * Theme function for TwiML lists.
- */
-function theme_twilio_twiml_list($variables) {
-
-  if (empty($variables['twiml_list'])) {
-    return FALSE;
-  }
-
-  $rows = array();
-  foreach ($variables['twiml_list'] as $row) {
-    $edit = l(t('Edit'), TWILIO_ADMIN_PATH . '/twiml/' . $row->twiml_id);
-    $delete = l(t('Delete'), TWILIO_ADMIN_PATH . '/twiml_delete/' . $row->twiml_id);
-    $url = $GLOBALS['base_url'] . '/twilio/twiml/' . $row->twiml_id;
-    $rows[] = array(
-      $row->name,
-      $row->description,
-      $url,
-      $edit . ' | ' . $delete,
-    );
-  }
-
-  $variables = array(
-    'header' => array('Name', 'Description', 'URL', 'Operations'),
-    'rows' => $rows,
-  );
-
-  return theme('table', $variables);
-
-}
-
-/**
- * Update a TwiML entry in the DB.
- *
- * @param int $twiml_id
- *   String - The machine name of the TwiML to delete.
- *
- * @return bool
- *   TRUE or FALSE
- */
-function twilio_twiml_delete($twiml_id) {
-  return db_delete('twilio_twiml')
-    ->condition('twiml_id', $twiml_id)
-    ->execute();
-}
-
-/**
- * Generate an options list of all TwiMLs.
- */
-function twilio_twiml_options_list() {
-  $twimls = array();
-  foreach (array_filter(twilio_twiml_load_multiple()) as $twiml) {
-    $twimls[$twiml->twiml_id] = $twiml->name;
-  }
-  return $twimls;
 }
 
 /**

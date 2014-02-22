@@ -64,37 +64,6 @@ function twilio_schema() {
     'primary key' => array('number'),
     'indexes' => array('uid' => array('uid')),
   );
-  $schema['twilio_twiml'] = array(
-    'fields' => array(
-      'twiml_id' => array(
-        'description' => 'The machine-readable name of this TwiML.',
-        'type' => 'varchar',
-        'length' => 32,
-        'not null' => TRUE,
-      ),
-      'name' => array(
-        'description' => 'The name of this TwiML.',
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'default' => '',
-      ),
-      'description' => array(
-        'description' => 'The description of this TwiML.',
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'default' => '',
-      ),
-      'data' => array(
-        'type' => 'blob',
-        'not null' => FALSE,
-        'size' => 'big',
-        'description' => 'The XML twiml config data.',
-      ),
-    ),
-    'primary key' => array('twiml_id'),
-  );
   return $schema;
 }
 
