@@ -124,7 +124,7 @@ function twilio_libraries_info() {
  * @param string $country
  *   The country code for the phone number
  */
-function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE) {
+function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE, $options = array()) {
   switch (variable_get('twilio_long_sms', TWILIO_SMS_LONG_MULTIPLE)) {
     case TWILIO_SMS_LONG_TRUNCATE:
       // Truncate the message to 160 characters.
@@ -133,6 +133,7 @@ function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE) 
         'country' => $country,
         'number' => $number,
         'message' => $message_truncated,
+        'options' => $options,
       ));
       break;
 
@@ -140,11 +141,16 @@ function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE) 
       // Break up the message into 160 character chunks and send multiple.
       $iterator = ceil(strlen($message) / 160);
       for ($i = 0; $i < $iterator; $i++) {
-        twilio_command('sendmsg', array(
+        $sms = array(
           'country' => $country,
           'number' => $number,
           'message' => substr($message, $i * 160, 160),
-        ));
+        );
+        // Attach the options array only to the first message
+        if ($i === 0) {
+          $sms['options'] = $options;
+        }
+        twilio_command('sendmsg', $sms);
       }
       break;
   }
@@ -189,12 +195,16 @@ function twilio_command($command = '', $data = array(), $config = array()) {
           case 'sendmsg':
             // Instantiate a new Twilio Rest Client.
             $client = new Services_Twilio($account_sid, $auth_token);
+            $sms = array(
+              'To' => '+' . $data['country'] . $data['number'],
+              'From' => $number,
+              'Body' => $data['message'],
+            );
+            if (!empty($data['options']['media'])) {
+              $sms['MediaUrl'] = $data['options']['media'];
+            }
             try {
-              $response  = $client->account->sms_messages->create(
-                $number,
-                '+' . $data['country'] . $data['number'],
-                $data['message']
-              );
+              $response = $client->account->messages->create($sms);
               return TRUE;
             }
             catch (Exception $e){
