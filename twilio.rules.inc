@@ -111,7 +111,7 @@ function twilio_rules_action_info() {
  */
 function twilio_rules_action_send_sms_to_user($account, $message, $media) {
   if (!empty($account->twilio_user['number']) && $account->twilio_user['status'] == 2) {
-    twilio_send($account->twilio_user['number'], $message, $account->twilio_user['country'], array('media' => $media));
+    twilio_send($account->twilio_user['number'], $message,$account->twilio_user['country'], $media);
   }
 }
 
@@ -119,7 +119,7 @@ function twilio_rules_action_send_sms_to_user($account, $message, $media) {
  * Action: Send an SMS to a number.
  */
 function twilio_rules_action_send_sms_to_number($country, $number, $message, $media) {
-  twilio_send($number, $message, $country, array('media' => $media));
+  twilio_send($number, $message, $country, $media);
 }
 
 /**

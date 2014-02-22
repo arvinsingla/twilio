@@ -123,8 +123,14 @@ function twilio_libraries_info() {
  *
  * @param string $country
  *   The country code for the phone number
+ *
+ * @param string $media
+ *   Public facing url to an media file
+ *
+ * @param array $options
+ *   Additonal options (not currently used)
  */
-function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE, $options = array()) {
+function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE, $media = NULL, $options = array()) {
   switch (variable_get('twilio_long_sms', TWILIO_SMS_LONG_MULTIPLE)) {
     case TWILIO_SMS_LONG_TRUNCATE:
       // Truncate the message to 160 characters.
@@ -133,6 +139,7 @@ function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE, 
         'country' => $country,
         'number' => $number,
         'message' => $message_truncated,
+        'media' => $media,
         'options' => $options,
       ));
       break;
@@ -145,10 +152,11 @@ function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE, 
           'country' => $country,
           'number' => $number,
           'message' => substr($message, $i * 160, 160),
+          'options' => $options,
         );
-        // Attach the options array only to the first message
+        // Attach the media array only to the first message.
         if ($i === 0) {
-          $sms['options'] = $options;
+          $sms['media'] = $media;
         }
         twilio_command('sendmsg', $sms);
       }
@@ -160,18 +168,15 @@ function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE, 
  * Executes a command using the Twilio REST API.
  *
  * @param string $command
- *   The command to execute.
- *   
+ *   The Twilio API command to execute.
+ *
  * @param array $data
- *   An array of data used by some twilio commands.
- *   
- * @param array $config
- *   Additional configuration parameters used by some twilio commands.
- *   
+ *   The array of data and configuration used by some command being executed.
+ *
  * @return bool
  *   TRUE if the command executed correctly, FALSE otherwise.
  */
-function twilio_command($command = '', $data = array(), $config = array()) {
+function twilio_command($command = '', $data = array()) {
 
   // Try to load the library and check if that worked.
   if (($library = libraries_load(TWILIO_LIBRARY)) && !empty($library['loaded'])) {
@@ -187,7 +192,7 @@ function twilio_command($command = '', $data = array(), $config = array()) {
     }
 
     // Twilio REST API version.
-    $api_version = !empty($config['sms_twilio_api']) ? $config['sms_twilio_api'] : TWILIO_API_VERSION;
+    $api_version = !empty($data['options']['api_version']) ? $data['options']['api_version'] : TWILIO_API_VERSION;
 
     switch ($api_version) {
       case '2010-04-01':
@@ -200,8 +205,8 @@ function twilio_command($command = '', $data = array(), $config = array()) {
               'From' => $number,
               'Body' => $data['message'],
             );
-            if (!empty($data['options']['media'])) {
-              $sms['MediaUrl'] = $data['options']['media'];
+            if (!empty($data['media'])) {
+              $sms['MediaUrl'] = $data['media'];
             }
             try {
               $response = $client->account->messages->create($sms);
@@ -286,13 +291,9 @@ function twilio_receive_message() {
     if (!empty($_REQUEST['To'])) {
       $options['receiver'] = $_REQUEST['To'];
     }
-    // Add media to the options array.
-    if (!empty($media)) {
-      $options['media'] = $media;
-    }
     $log_message = 'An SMS message was sent from ' . $number . ' containing the message "' . $message . '"';
     watchdog('Twilio', $log_message);
-    twilio_sms_incoming($number, $message, $options);
+    twilio_sms_incoming($number, $message, $media, $options);
   }
 }
 
@@ -305,11 +306,11 @@ function twilio_receive_message() {
  * @param string $message
  *   The content of the text message.
  */
-function twilio_sms_incoming($number, $message, $options = array()) {
+function twilio_sms_incoming($number, $message, $media = array(), $options = array()) {
   // Invoke a hook for the incoming message so other modules can do things.
-  module_invoke_all('twilio_sms_incoming', $number, $message, $options);
+  module_invoke_all('twilio_sms_incoming', $number, $message, $media, $options);
   if (module_exists('rules')) {
-    rules_invoke_event('twilio_sms_incoming', $number, $message, $options);
+    rules_invoke_event('twilio_sms_incoming', $number, $message, $media, $options);
   }
 }
 

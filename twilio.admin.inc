@@ -101,19 +101,25 @@ function twilio_admin_form($form, &$form_state) {
 function twilio_admin_test_form($form, &$form_state) {
   $form['country'] = array(
     '#type' => 'select',
-    '#title' => 'Country code',
+    '#title' => t('Country code'),
     '#options' => twilio_country_codes(),
   );
   $form['number'] = array(
     '#type' => 'textfield',
     '#required' => TRUE,
-    '#title' => 'Phone Number',
+    '#title' => t('Phone Number'),
     '#description' => t('include all numbers except the country code'),
   );
   $form['message'] = array(
     '#type' => 'textarea',
     '#required' => TRUE,
-    '#title' => 'Message',
+    '#title' => t('Message'),
+  );
+  $form['media'] = array(
+    '#type' => 'textfield',
+    '#required' => FALSE,
+    '#title' => t('Media URL'),
+    '#description' => t('A publicly accessible URL to a media file'),
   );
   $form['submit'] = array(
     '#type' => 'submit',
@@ -130,12 +136,20 @@ function twilio_admin_test_form_validate($form, &$form_state) {
   if (!is_numeric($value)) {
     form_set_error('number', t('You must enter a phone number'));
   }
+  if (!empty($form_state['values']['media']) && !valid_url($form_state['values']['media'], TRUE)) {
+    form_set_error('media', t('Media must be a valid URL'));
+  }
 }
 
 /**
  * Submit handler for the administrative test message testing form.
  */
 function twilio_admin_test_form_submit($form, &$form_state) {
-  twilio_send($form_state['values']['number'], $form_state['values']['message'], $form_state['values']['country']);
+  twilio_send(
+    $form_state['values']['number'],
+    $form_state['values']['message'],
+    $form_state['values']['country'],
+    !empty($form_state['values']['media']) ? $form_state['values']['media'] : NULL
+  );
   drupal_set_message(t('Your message has been sent'));
 }
