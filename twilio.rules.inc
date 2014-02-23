@@ -5,6 +5,54 @@
  */
 
 /**
+* Implementation hook_rules_data_info().
+*/
+function twilio_rules_data_info() {
+  return array(
+    'sms' => array(
+      'label' => t('Twilio incoming SMS'),
+      'wrap' => TRUE,
+      'property info' => array(
+        'number' => array(
+          'type' => 'text',
+          'label' => t('Number'),
+          'description' => t('The phone number of the incoming SMS.'),
+          'getter callback' => 'entity_property_verbatim_get',
+          'setter callback' => 'entity_property_verbatim_set',
+        ),
+        'message' => array(
+          'type' => 'text',
+          'label' => t('Message'),
+          'description' => t('The message of the incoming SMS.'),
+          'getter callback' => 'entity_property_verbatim_get',
+          'setter callback' => 'entity_property_verbatim_set',
+        ),
+        'media' => array(
+          'type' => 'text',
+          'label' => t('Media'),
+          'description' => t('The media attached to the incoming SMS.'),
+          'getter callback' => 'entity_property_verbatim_get',
+          'setter callback' => 'entity_property_verbatim_set',
+        ),
+      ),
+    ),
+    'voice' => array(
+      'label' => t('Twilio incoming Voice'),
+      'wrap' => TRUE,
+      'property info' => array(
+        'number' => array(
+          'type' => 'text',
+          'label' => t('Number'),
+          'description' => t('The phone number of the incoming call.'),
+          'getter callback' => 'entity_property_verbatim_get',
+          'setter callback' => 'entity_property_verbatim_set',
+        ),
+      ),
+    ),
+  );
+}
+
+/**
  * Implements hook_event_info().
  */
 function twilio_rules_event_info() {

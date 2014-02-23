@@ -274,18 +274,12 @@ function twilio_command($command = '', $data = array()) {
  * Callback for incoming messages.
  */
 function twilio_receive_message() {
-  if (!empty($_REQUEST['From']) && !empty($_REQUEST['Body']) && twilio_command('validate')) {
+  if (!empty($_REQUEST['From']) && !empty($_REQUEST['Body']) && twilio_command('validate') ) {
     // @todo Strip appropriate header number for geographic location.
     $number = str_replace('+1', '', $_REQUEST['From']);
     $message = check_plain(htmlspecialchars_decode($_REQUEST['Body'], ENT_QUOTES));
-    // Do we have any media entries?
-    if (!empty($_REQUEST['NumMedia'])) {
-      $media = array();
-      // Iterate through and populate the media array with urls.
-      for ($i = 0; $i < $_REQUEST['NumMedia']; $i++) {
-        $media[] = $_REQUEST['MediaUrl' . $i];
-      }
-    }
+    // TODO: Support more than one media entry.
+    $media = !empty($_REQUEST['MediaUrl0']) ? $_REQUEST['MediaUrl0'] : '';
     $options = array();
     // Add the receiver to the options array.
     if (!empty($_REQUEST['To'])) {
@@ -305,12 +299,22 @@ function twilio_receive_message() {
  *
  * @param string $message
  *   The content of the text message.
+ *
+ * @param string $media
+ *   The absolute media url for a media file attatched to the message.
+ *
  */
 function twilio_sms_incoming($number, $message, $media = array(), $options = array()) {
+  // Build our SMS array to be used by our hook and rules event.
+  $sms = array(
+    'number' => $number,
+    'message' => $message,
+    'media' => $media,
+  );
   // Invoke a hook for the incoming message so other modules can do things.
-  module_invoke_all('twilio_sms_incoming', $number, $message, $media, $options);
+  module_invoke_all('twilio_sms_incoming', $sms, $options);
   if (module_exists('rules')) {
-    rules_invoke_event('twilio_sms_incoming', $number, $message, $media, $options);
+    rules_invoke_event('twilio_sms_incoming', $sms);
   }
 }
 
