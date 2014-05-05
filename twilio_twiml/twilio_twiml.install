@@ -51,13 +51,12 @@ function twilio_twiml_get_schema() {
  * Implements hook_install().
  */
 function twilio_twiml_install() {
-  // Only create the DB tables if the tables don't already exist.
-  if (!db_table_exists('twilio_twiml')) {
-    // Get our schema
-    $schema = drupal_install_schema(twilio_twiml_get_schema());
-    $schema = _drupal_schema_initialize($schema, 'twilio_twiml', FALSE);
-    // Create the tables
-    foreach ($schema as $name => $table) {
+  // Get our schema
+  $schema = twilio_twiml_get_schema();
+  // Create the tables
+  foreach ($schema as $name => $table) {
+    // Only create the DB tables if they don't already exist.
+    if (!db_table_exists($name)) {
       db_create_table($name, $table);
     }
   }
@@ -67,12 +66,11 @@ function twilio_twiml_install() {
  * Implements hook_uninstall().
  */
 function twilio_twiml_uninstall() {
-  $schema = drupal_install_schema(twilio_twiml_get_schema());
-  $schema = _drupal_schema_initialize($schema, 'twilio_twiml', FALSE);
+  $schema = twilio_twiml_get_schema();
   // Create the tables
-  foreach ($schema as $table) {
-    if (db_table_exists($table['name'])) {
-      db_drop_table($table['name']);
+  foreach ($schema as $name => $table) {
+    if (db_table_exists($name)) {
+      db_drop_table($name);
     }
   }
 }
