@@ -118,3 +118,16 @@ function twilio_update_7001() {
   ); 
   db_add_field( 'twilio_user', 'country', $spec);
 }
+
+/**
+ * Enable the twilio_twiml module if necessary.
+ */
+function twilio_update_7002() {
+  $result = db_query('SELECT COUNT(*) FROM {twilio_twiml}')->fetchField();
+  if (!empty($result)) {
+    if (module_enable(array('twilio_twiml'))) {
+      return "Enabled the Twilio Twiml module.";
+    }
+  }
+  return "Twilio Twiml module was not enabled.";
+}
