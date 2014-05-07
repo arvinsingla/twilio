@@ -124,6 +124,7 @@ function twilio_rules_action_info() {
       ),
       'media' => array(
         'type' => 'text',
+        'optional' => TRUE,
         'label' => t('Media path'),
       ),
     ),
@@ -147,6 +148,7 @@ function twilio_rules_action_info() {
       ),
       'media' => array(
         'type' => 'text',
+        'optional' => TRUE,
         'label' => t('Media path'),
       ),
     ),
