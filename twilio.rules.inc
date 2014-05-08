@@ -5,8 +5,8 @@
  */
 
 /**
-* Implementation hook_rules_data_info().
-*/
+ * Implementation hook_rules_data_info().
+ */
 function twilio_rules_data_info() {
   return array(
     'sms' => array(
@@ -98,6 +98,17 @@ function twilio_rules_condition_info() {
       'group' => t('Twilio'),
       'module' => 'twilio',
     ),
+    'twilio_rules_condition_user_has_verified_number' => array(
+      'label' => t('User has a verified number'),
+      'arguments' => array(
+        'account' => array(
+          'type' => 'user',
+          'label' => t('User'),
+        ),
+      ),
+      'group' => t('Twilio'),
+      'module' => 'twilio',
+    ),
   );
 }
 
@@ -161,7 +172,7 @@ function twilio_rules_action_info() {
  */
 function twilio_rules_action_send_sms_to_user($account, $message, $media) {
   if (!empty($account->twilio_user['number']) && $account->twilio_user['status'] == 2) {
-    twilio_send($account->twilio_user['number'], $message,$account->twilio_user['country'], $media);
+    twilio_send($account->twilio_user['number'], $message, $account->twilio_user['country'], $media);
   }
 }
 
@@ -177,4 +188,15 @@ function twilio_rules_action_send_sms_to_number($country, $number, $message, $me
  */
 function twilio_rules_condition_number_belongs_to_user($number) {
   return twilio_verify_number($number);
+}
+
+/**
+ * Condition: Validate if the user has a verified number.
+ */
+function twilio_rules_condition_user_has_verified_number($user) {
+  // Check if the user has TWILIO_USER_CONFIRMED status.
+  if (!empty($user->twilio_user) && $user->twilio_user['status'] == TWILIO_USER_CONFIRMED) {
+    return TRUE;
+  }
+  return FALSE;
 }
