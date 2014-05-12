@@ -58,7 +58,7 @@ function twilio_admin_form($form, &$form_state) {
   $form['twilio_country_codes_container'] = array(
     '#type' => 'fieldset',
     '#title' => t('Country codes'),
-    '#description' => t('Select the country codes you would like to accept, If none are selected all will be available'),
+    '#description' => t('Select the country codes you would like available, If none are selected all will be available.'),
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
   );
@@ -145,11 +145,16 @@ function twilio_admin_test_form_validate($form, &$form_state) {
  * Submit handler for the administrative test message testing form.
  */
 function twilio_admin_test_form_submit($form, &$form_state) {
-  twilio_send(
+  $sent = twilio_send(
     $form_state['values']['number'],
     $form_state['values']['message'],
     $form_state['values']['country'],
     !empty($form_state['values']['media']) ? $form_state['values']['media'] : NULL
   );
-  drupal_set_message(t('Your message has been sent'));
+  if ($sent) {
+    drupal_set_message(t('Your message has been sent'));
+  }
+  else {
+    drupal_set_message(t('Unable to send your message.'), 'error');
+  }
 }
