@@ -33,7 +33,7 @@ function twilio_menu() {
     'description' => 'Administer your twilio settings',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('twilio_admin_form'),
-    'access arguments' => array('access administration pages'),
+    'access arguments' => array('administer twilio'),
     'file' => 'twilio.admin.inc',
   );
   $items[TWILIO_ADMIN_PATH . '/settings'] = array(
@@ -46,7 +46,7 @@ function twilio_menu() {
     'description' => 'Test your Twilio SMS functionality',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('twilio_admin_test_form'),
-    'access arguments' => array('access administration pages'),
+    'access arguments' => array('administer twilio'),
     'file' => 'twilio.admin.inc',
     'type' => MENU_LOCAL_TASK,
     'weight' => 0,
@@ -83,6 +83,10 @@ function twilio_permission() {
     'edit own sms number' => array(
       'title' => t('Edit own number'),
       'description' => t('Edit your own phone number'),
+    ),
+    'administer twilio' => array(
+      'title' => t('Administer Twilio'),
+      'description' => t('Administer Twilio confguration'),
     ),
   );
 }
