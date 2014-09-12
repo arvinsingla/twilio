@@ -108,18 +108,19 @@ function twilio_admin_test_form($form, &$form_state) {
     '#type' => 'textfield',
     '#required' => TRUE,
     '#title' => t('Phone Number'),
-    '#description' => t('include all numbers except the country code'),
+    '#description' => t('The number to send your message to. Include all numbers except the country code'),
   );
   $form['message'] = array(
     '#type' => 'textarea',
     '#required' => TRUE,
     '#title' => t('Message'),
+    '#description' => t("The body of your SMS message.")
   );
   $form['media'] = array(
     '#type' => 'textfield',
     '#required' => FALSE,
-    '#title' => t('Media URL'),
-    '#description' => t('A publicly accessible URL to a media file'),
+    '#title' => t('Media URL (MMS)'),
+    '#description' => t('A publicly accessible URL to a media file such as a png, jpg, gif, etc. (e.g. http://something.com/photo.jpg)'),
   );
   $form['submit'] = array(
     '#type' => 'submit',
