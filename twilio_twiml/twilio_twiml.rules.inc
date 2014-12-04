@@ -10,11 +10,11 @@
 function twilio_twiml_rules_action_info() {
   $defaults = array(
     'group' => t('Twilio'),
-    'module' => 'twilio',
+    'module' => 'twilio_twiml',
   );
   $actions['twilio_twiml_output'] = $defaults + array(
     'label' => t('Output TwiML'),
-    'base' => 'twilio_twiml_rules_twiml_output',
+    'base' => 'twilio_twiml_rules_action_twiml_output',
     'parameter' => array(
       'twiml_id' => array(
         'type' => 'text',
@@ -30,8 +30,9 @@ function twilio_twiml_rules_action_info() {
 /**
  * Action: Output TwiML.
  */
-function twilio_twiml_rules_twiml_output($twiml_id) {
+function twilio_twiml_rules_action_twiml_output($twiml_id) {
+  // Load our TwiML.
   $twiml = twilio_twiml_load($twiml_id);
-  echo $twiml['data'];
-  exit();
+  // Call for output of the TwiML.
+  twilio_twiml_display($twiml);
 }

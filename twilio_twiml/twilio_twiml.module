@@ -160,9 +160,13 @@ function twilio_twiml_load_multiple($twiml_ids = FALSE) {
  * Display TwiML to the screen.
  */
 function twilio_twiml_display($twiml) {
+  // Set the header to XML.
+  drupal_add_http_header('Content-Type', 'text/xml; utf-8');
+  // If PHP is enabled run the document through PHP evaluation.
   if (module_exists('php')) {
     echo php_eval($twiml['data']);
   }
+  // Otherwise send it as is.
   else {
     echo $twiml['data'];
   }
