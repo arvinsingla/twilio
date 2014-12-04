@@ -296,6 +296,7 @@ function twilio_receive_message() {
     }
     // @todo: Strip appropriate header number for geographic location.
     $number = check_plain(str_replace('+' . $message_code, '', $_REQUEST['From']));
+    $number_twilio = !empty($_REQUEST['To']) ? check_plain($_REQUEST['To']) : '';
     $message = check_plain(htmlspecialchars_decode($_REQUEST['Body'], ENT_QUOTES));
     // @todo: Support more than one media entry.
     $media = !empty($_REQUEST['MediaUrl0']) ? $_REQUEST['MediaUrl0'] : '';
@@ -305,7 +306,7 @@ function twilio_receive_message() {
       $options['receiver'] = check_plain($_REQUEST['To']);
     }
     watchdog('Twilio', 'An SMS message was sent from @number containing the message @message', array('@number' => $number, '@message' => $message));
-    twilio_sms_incoming($number, $message, $media, $options);
+    twilio_sms_incoming($number, $number_twilio, $message, $media, $options);
   }
 }
 
@@ -315,16 +316,20 @@ function twilio_receive_message() {
  * @param string $number
  *   The sender's mobile number.
  *
+ * @param string $number_twilio
+ *   The twilio recipient number.
+ *
  * @param string $message
  *   The content of the text message.
  *
  * @param string $media
  *   The absolute media url for a media file attatched to the message.
  */
-function twilio_sms_incoming($number, $message, $media = array(), $options = array()) {
+function twilio_sms_incoming($number, $number_twilio, $message, $media = array(), $options = array()) {
   // Build our SMS array to be used by our hook and rules event.
   $sms = array(
     'number' => $number,
+    'number_twilio' => $number_twilio,
     'message' => $message,
     'media' => $media,
   );
@@ -385,6 +390,10 @@ function twilio_token_info() {
     'name' => t("Number"),
     'description' => t("The phone number of the incoming SMS."),
   );
+  $info['tokens']['sms']['number_twilio'] = array(
+    'name' => t("Twilio Number"),
+    'description' => t("The Twilio number that received the message."),
+  );
   $info['tokens']['sms']['message'] = array(
     'name' => t("Message"),
     'description' => t("The message of the incoming SMS."),
@@ -413,6 +422,10 @@ function twilio_tokens($type, $tokens, array $data = array(), array $options = a
       switch ($name) {
         case 'number':
           $replacements[$original] = $sms['number'];
+          break;
+
+        case 'number_twilio':
+          $replacements[$original] = $sms['number_twilio'];
           break;
 
         case 'message':

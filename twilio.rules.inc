@@ -5,7 +5,7 @@
  */
 
 /**
- * Implementation hook_rules_data_info().
+ * Implements hook_rules_data_info().
  */
 function twilio_rules_data_info() {
   return array(
@@ -17,6 +17,13 @@ function twilio_rules_data_info() {
           'type' => 'text',
           'label' => t('Number'),
           'description' => t('The phone number of the incoming SMS.'),
+          'getter callback' => 'entity_property_verbatim_get',
+          'setter callback' => 'entity_property_verbatim_set',
+        ),
+        'number_twilio' => array(
+          'type' => 'text',
+          'label' => t('Twilio Number'),
+          'description' => t('The Twilio phone number that receieved the message.'),
           'getter callback' => 'entity_property_verbatim_get',
           'setter callback' => 'entity_property_verbatim_set',
         ),
