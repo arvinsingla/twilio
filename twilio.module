@@ -291,12 +291,11 @@ function twilio_receive_message() {
     $codes = twilio_country_codes();
     $message_code = twilio_get_country_short_codes($_REQUEST['ToCountry']);
     if (empty($codes[$message_code])) {
-      watchdog('Twilio', 'A message was blocked from the country @country, due to your currrent settings.', array('@country' => $_REQUEST['ToCountry']));
+      watchdog('Twilio', 'A message was blocked from the country @country, due to your currrent country code settings.', array('@country' => $_REQUEST['ToCountry']));
       return;
     }
-    // @todo: Strip appropriate header number for geographic location.
     $number = check_plain(str_replace('+' . $message_code, '', $_REQUEST['From']));
-    $number_twilio = !empty($_REQUEST['To']) ? check_plain($_REQUEST['To']) : '';
+    $number_twilio = !empty($_REQUEST['To']) ? check_plain(str_replace('+', '', $_REQUEST['To'])) : '';
     $message = check_plain(htmlspecialchars_decode($_REQUEST['Body'], ENT_QUOTES));
     // @todo: Support more than one media entry.
     $media = !empty($_REQUEST['MediaUrl0']) ? $_REQUEST['MediaUrl0'] : '';
@@ -305,7 +304,7 @@ function twilio_receive_message() {
     if (!empty($_REQUEST['To'])) {
       $options['receiver'] = check_plain($_REQUEST['To']);
     }
-    watchdog('Twilio', 'An SMS message was sent from @number containing the message @message', array('@number' => $number, '@message' => $message));
+    watchdog('Twilio', 'An SMS message was sent from @number containing the message "@message"', array('@number' => $number, '@message' => $message));
     twilio_sms_incoming($number, $number_twilio, $message, $media, $options);
   }
 }
@@ -346,12 +345,13 @@ function twilio_sms_incoming($number, $number_twilio, $message, $media = array()
 function twilio_receive_voice() {
   if (!empty($_REQUEST['From']) && twilio_command('validate', array('type' => 'voice'))) {
     $number = check_plain(str_replace('+1', '', $_REQUEST['From']));
+    $number_twilio = !empty($_REQUEST['To']) ? check_plain(str_replace('+', '', $_REQUEST['To'])) : '';
     $options = array();
     if (!empty($_REQUEST['To'])) {
       $options['receiver'] = check_plain($_REQUEST['To']);
     }
     watchdog('Twilio', 'A voice call from @number was received.', array('@number' => $number));
-    twilio_voice_incoming($number, $options);
+    twilio_voice_incoming($number, $number_twilio, $options);
   }
 }
 
@@ -361,9 +361,10 @@ function twilio_receive_voice() {
  * @param string $number
  *   The sender's mobile number.
  */
-function twilio_voice_incoming($number, $options = array()) {
+function twilio_voice_incoming($number, $number_twilio, $options = array()) {
   $voice = array(
     'number' => $number,
+    'number_twilio' => $number_twilio,
   );
   // Invoke a hook for the incoming message so other modules can do things.
   module_invoke_all('twilio_voice_incoming', $voice, $options);
@@ -407,6 +408,10 @@ function twilio_token_info() {
     'name' => t("Number"),
     'description' => t("The phone number of the incoming voice call."),
   );
+  $info['tokens']['voice']['number_twilio'] = array(
+    'name' => t("Twilio Number"),
+    'description' => t("The Twilio number that received the voice call."),
+  );
   return $info;
 }
 
@@ -447,9 +452,12 @@ function twilio_tokens($type, $tokens, array $data = array(), array $options = a
     foreach ($tokens as $name => $original) {
       switch ($name) {
         case 'number':
-          $replacements[$original] = $sms['number'];
+          $replacements[$original] = $voice['number'];
           break;
 
+        case 'number_twilio':
+          $replacements[$original] = $voice['number_twilio'];
+          break;
       }
     }
     return $replacements;
