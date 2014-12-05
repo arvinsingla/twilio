@@ -124,9 +124,15 @@ function twilio_form_user_register_form_alter(&$form, &$form_state, $form_id) {
  */
 function twilio_register_validate($form, &$form_state) {
   $value = $form_state['values']['number'];
+  // Phone number is not required and not entered.
+  if (empty($value) && empty($form['account']['number']['#required'])) {
+    return;
+  }
+  // Something has been entered but is non numeric.
   if (!is_numeric($value)) {
     form_set_error('number', t('You must enter a valid phone number'));
   }
+  // Something that looks like a number, verify it's not already taken.
   elseif (twilio_verify_number($value)) {
     form_set_error('number', t('This number is already in use and cannot be assigned to more than one account'));
   }
@@ -136,8 +142,15 @@ function twilio_register_validate($form, &$form_state) {
  * Custom submit handler for phone numbers during registration.
  */
 function twilio_register_submit($form, &$form_state) {
-  $account = user_load($form_state['values']['uid']);
-  twilio_user_send_confirmation($account, $form_state['values']['number'], $form_state['values']['countrycode']);
+  $value = $form_state['values']['number'];
+  // Phone number is not required and not entered.
+  if (empty($value) && empty($form['account']['number']['#required'])) {
+    return;
+  }
+  else {
+    $account = user_load($form_state['values']['uid']);
+    twilio_user_send_confirmation($account, $form_state['values']['number'], $form_state['values']['countrycode']);
+  }
 }
 
 /**
