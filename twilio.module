@@ -23,6 +23,7 @@ define('TWILIO_DEFAULT_COUNTRY_CODE', 1);
  */
 module_load_include('inc', 'twilio', 'twilio.user');
 module_load_include('inc', 'twilio', 'twilio.codes');
+module_load_include('inc', 'twilio', 'twilio.actions');
 
 /**
  * Implements hook_menu().
