@@ -225,7 +225,7 @@ function twilio_country_codes($all = FALSE) {
     255 => "Zanzibar (255)",
     263 => "Zimbabwe (263)",
   );
-  if ($all) {
+  if ($all === TRUE) {
     return $codes;
   }
   $codes_to_return = array_filter(variable_get('twilio_country_codes', array()));
